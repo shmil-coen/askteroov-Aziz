@@ -60,8 +60,46 @@ def _set_windows_dpi_awareness() -> None:
         pass
 
 
+def _set_windows_app_id() -> None:
+    """מזהה יישום ל-Windows — כדי ששורת המשימות תציג את סמל התוכנה
+    (ולא תקבץ את החלון תחת הסמל של פייתון / סמל ריק)."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Askateroov.App")
+    except Exception:
+        pass
+
+
+def _install_app_icon(app) -> None:
+    """סמל התוכנה לכל החלונות (שורת המשימות, פינת החלון) — מתוך tools\\app_icon.ico."""
+    from pathlib import Path
+    from PySide6.QtGui import QIcon
+    from .core import config
+    for cand in (config.PROJECT_ROOT / "tools" / "app_icon.ico",
+                 Path(getattr(sys, "_MEIPASS", "")) / "tools" / "app_icon.ico"):
+        if cand.is_file():
+            app.setWindowIcon(QIcon(str(cand)))
+            return
+
+
+def _install_qt_hebrew(app) -> None:
+    """תרגום עברי לטקסטים המובנים של Qt ('הצג פרטים...', כן/לא/ביטול,
+    חלונות בחירת קבצים, תפריט העתק/הדבק) — בלעדיו הם מוצגים באנגלית."""
+    from pathlib import Path
+    from PySide6.QtCore import QLibraryInfo, QTranslator
+    tr = QTranslator(app)
+    for folder in (QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath),
+                   str(Path(getattr(sys, "_MEIPASS", "")) / "PySide6" / "translations")):
+        if folder and tr.load("qtbase_he", folder):
+            app.installTranslator(tr)
+            return
+
+
 def main() -> int:
     _set_windows_dpi_awareness()   # לפני יצירת QApplication/כל חלון
+    _set_windows_app_id()          # לפני יצירת חלון — סמל נכון בשורת המשימות
 
     from PySide6.QtWidgets import QApplication
 
@@ -73,6 +111,8 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Askateroov")
     app.setQuitOnLastWindowClosed(True)
+    _install_app_icon(app)
+    _install_qt_hebrew(app)
     # כיוון מימין לשמאל לכל היישום – גם לטקסט של כפתורים ודיאלוגים
     from PySide6.QtCore import Qt
     app.setLayoutDirection(Qt.LayoutDirection.RightToLeft)

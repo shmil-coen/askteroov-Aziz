@@ -86,20 +86,31 @@ class DeviceStatusWidget(QWidget):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 0, 6, 0)
         lay.setSpacing(8)
-        self.text = QLabel("אין מכשיר מחובר")
+        # הטקסט כשאין מכשיר — נקבע לפי ערוץ התקשורת ('אין ערוץ תקשורת פעיל' וכו')
+        self._idle_text = "אין מכשיר מחובר"
+        self._idle = True
+        self.text = QLabel(self._idle_text)
         self.battery = BatteryIcon()
         lay.addWidget(self.text)
         lay.addWidget(self.battery)
+
+    def set_idle_text(self, text: str):
+        """קובע מה מוצג כשאין מכשיר; אם כרגע אין מכשיר — מתעדכן מיד."""
+        self._idle_text = text or "אין מכשיר מחובר"
+        if self._idle:
+            self.text.setText(self._idle_text)
 
     def set_info(self, info):
         """info: DeviceInfo (מ-core.device_info)."""
         try:
             if info is None or getattr(info, "mode", "none") == "none":
-                self.text.setText("אין מכשיר מחובר")
+                self._idle = True
+                self.text.setText(self._idle_text)
                 self.battery.set_level(None)
                 self.battery.setVisible(False)
                 self.setToolTip("")
                 return
+            self._idle = False
             parts = []
             if getattr(info, "model", ""):
                 parts.append(info.model)

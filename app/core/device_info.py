@@ -85,6 +85,22 @@ def adb_devices_connected(adb: str) -> bool:
     return False
 
 
+def adb_device_state(adb: str) -> str:
+    """מצב המכשיר לפי 'adb devices': device / unauthorized / offline, או '' כשאין מכשיר."""
+    out = _run([adb, "devices"], timeout=8)
+    for line in out.splitlines()[1:]:
+        parts = line.split()   # "<serial>\t<state>"
+        if len(parts) >= 2 and parts[1].strip():
+            return parts[1].strip()
+    return ""
+
+
+def _is_adb_error(val: str) -> bool:
+    """תשובת שגיאה של adb (למשל 'error: no devices/emulators found') — לא ערך אמיתי."""
+    low = (val or "").strip().lower()
+    return low.startswith(("error:", "adb:", "adb.exe:", "* daemon")) or "no devices/emulators" in low
+
+
 def read_adb_info(adb: str) -> Optional[DeviceInfo]:
     if not adb_devices_connected(adb):
         return None
@@ -93,10 +109,13 @@ def read_adb_info(adb: str) -> Optional[DeviceInfo]:
     brand = _run([adb, "shell", "getprop", "ro.product.brand"], timeout=6).strip()
     info.model = (f"{brand} {model}".strip() if brand and brand.lower() not in model.lower()
                   else model)
+    # מעבד: ro.board.platform (למשל mt6580). ro.hardware הוא לרוב שם הדגם/הלוח —
+    # ממנו לוקחים רק שם מעבד אמיתי (MTxxxx), כדי ששם המכשיר לא יוצג כמעבד
     cpu = _run([adb, "shell", "getprop", "ro.board.platform"], timeout=6).strip()
-    if not cpu or cpu in ("0", "unknown"):
-        cpu = _run([adb, "shell", "getprop", "ro.hardware"], timeout=6).strip()
-    info.cpu = _norm_cpu(cpu)
+    if cpu and cpu not in ("0", "unknown") and not _is_adb_error(cpu):
+        info.cpu = _norm_cpu(cpu)
+    else:
+        info.cpu = _strict_cpu(_run([adb, "shell", "getprop", "ro.hardware"], timeout=6))
     info.battery = _parse_battery_level(_run([adb, "shell", "dumpsys", "battery"], timeout=6))
     if not info.cpu:
         # גיבוי: serialno של MediaTek מקודד את קוד השבב (למשל 0x6580 → MT6580)
@@ -164,12 +183,14 @@ _VERIFIED_BOOT_LABELS = {
 def collect_adb_details(adb: str) -> dict:
     """אוסף מידע מורחב מהמכשיר ב-ADB (קריאה בלבד): דגם, מעבד, אנדרואיד, סוללה."""
     out: dict[str, str] = {}
+    if adb_device_state(adb) != "device":
+        return out   # אין מכשיר זמין ב-ADB — לא ממלאים שדות בהודעות שגיאה של adb
     for prop, label in ADB_PROPS.items():
         val = _run([adb, "shell", "getprop", prop], timeout=6).strip()
-        if val:
+        if val and not _is_adb_error(val):
             out[label] = val
     vbs = _run([adb, "shell", "getprop", "ro.boot.verifiedbootstate"], timeout=6).strip()
-    if vbs:
+    if vbs and not _is_adb_error(vbs):
         _vb_names = {"green": "0", "yellow": "1", "orange": "2", "red": "3"}
         out["מצב Verified Boot"] = _VERIFIED_BOOT_LABELS.get(_vb_names.get(vbs.lower(), vbs), vbs)
     level = _parse_battery_level(_run([adb, "shell", "dumpsys", "battery"], timeout=6))
@@ -450,12 +471,23 @@ _FBVAR_RE = re.compile(r":\s*(.+?)\s*$")
 
 
 def _fb_var(fb: str, var: str) -> str:
+    """ערך משתנה getvar; ריק כשהמכשיר לא תומך בו.
+
+    רק שורה בצורה '<var>: <ערך>' (אולי עם '(bootloader)' לפני) נחשבת תשובה —
+    שורות כשל כמו 'getvar:battery-voltage FAILED (remote: ...)' אינן ערך.
+    """
     out = _run([fb, "getvar", var], timeout=8)
+    line_re = re.compile(r"^(?:\(bootloader\)\s*)?" + re.escape(var) + r"\s*:\s*(.*?)\s*$",
+                         re.IGNORECASE)
     for line in out.splitlines():
-        if var in line:
-            m = _FBVAR_RE.search(line)
-            if m and m.group(1).lower() not in ("", "not found"):
-                return m.group(1).strip()
+        m = line_re.match(line.strip())
+        if not m:
+            continue
+        val = m.group(1).strip()
+        low = val.lower()
+        if not val or "not found" in low or "fail" in low or "unknown" in low                 or "not support" in low:
+            continue
+        return val
     return ""
 
 

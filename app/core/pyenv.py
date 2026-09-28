@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -90,7 +91,25 @@ class PyEnvReport:
         return any(c.kind == KIND_INSIDE and c.exists for c in self.candidates)
 
     def summary(self) -> str:
-        lines = []
+        """למעלה: שורת סיכום אחת (מוכן / מה חסר). למטה: הפירוט המלא."""
+        # ---- שורת הסיכום
+        if self.ok:
+            head = ["🟢 הכל מוכן לעבודה — mtkclient יכול לרוץ."]
+        else:
+            gaps = []
+            if self.active is None:
+                gaps.append("פייתון")
+            if not self.mtk_script_ok:
+                gaps.append("mtk.py")
+            if self.check_error:
+                gaps.append("בדיקת הספריות נכשלה")
+            elif self.active is not None and self.missing:
+                gaps.append("ספריות: " + ", ".join(self.missing))
+            head = ["🔴 לא מוכן לעבודה — חסר: " + (" · ".join(gaps) or "ראה פירוט")]
+            if self.active is None:
+                head.append("   לחץ על הכפתור 'התקן פייתון' למטה.")
+        lines = head + ["", "──── פירוט ────"]
+        # ---- פירוט: מה יש ומה חסר
         if self.active:
             kind = _KIND_LABEL.get(self.active_kind, "פייתון")
             ver = f" — גרסה {self.version}" if self.version else ""
@@ -98,7 +117,6 @@ class PyEnvReport:
             lines.append(f"   נתיב: {self.active}")
         else:
             lines.append("❌ לא נמצא פייתון — mtkclient לא יוכל לרוץ.")
-            lines.append("   לחץ על הכפתור 'התקן פייתון' למטה.")
         lines.append("")
         lines.append("מה נמצא:")
         for c in self.candidates:
@@ -117,9 +135,6 @@ class PyEnvReport:
                              + " ".join(self.missing))
             else:
                 lines.append("✅ כל הספריות ש-mtkclient צריך קיימות.")
-        lines.append("")
-        lines.append("🟢 הסביבה תקינה — mtkclient מוכן לעבודה." if self.ok
-                     else "🔴 הסביבה לא מוכנה — ראה הפרטים למעלה.")
         return "\n".join(lines)
 
 
@@ -145,7 +160,17 @@ def detect() -> PyEnvReport:
     root = config.PROJECT_ROOT
     inside = next((p for p in (root / "python" / _EXE, root / "mtkclient" / _EXE)
                    if p.is_file()), None)
-    external = config.PORTABLE_ROOT / "python.exe"
+    # פייתון נייד חיצוני: התיקייה המוגדרת, ובגרסה מקומפלת גם MTKCliantPortable ליד
+    # ה-exe — אותם מיקומים ש-config.find_python_exe משתמש בהם בפועל (בלי זה, נייד
+    # שליד ה-exe דווח בטעות כ"פייתון מותקן במחשב")
+    ext_cands = [config.PORTABLE_ROOT / "python.exe"]
+    if config.FROZEN:
+        here = Path(sys.executable).resolve().parent
+        ext_cands += [here / "MTKCliantPortable" / "MTKCliantPortable" / "python.exe",
+                      here / "MTKCliantPortable" / "python.exe"]
+    existing = [p for p in ext_cands if p.is_file()]
+    external = (next((p for p in existing if _same(p, config.PYTHON_EXE)), None)
+                or (existing[0] if existing else ext_cands[0]))
     system = _system_python()
     rep.candidates = [
         PyCandidate(KIND_INSIDE, inside, inside is not None),

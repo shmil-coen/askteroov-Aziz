@@ -139,6 +139,12 @@ _ACTION_HELP = {
     "fb_erase": ("fastboot erase",
                  "מה זה עושה: מוחק את תוכן מחיצה לפי שם.\n"
                  "השלכות: ⚠️ הנתונים במחיצה יאבדו לצמיתות! ודא שיש לך גיבוי של המחיצה לפני המחיקה."),
+    "fb_unlock": ("פתיחת בוטלאודר (fastboot flashing unlock)",
+                  "מה זה עושה: פותח את הבוטלאודר של מכשיר שמחובר במצב Fastboot.\n"
+                  "למה זה משמש: בוטלאודר פתוח מאפשר לצרוב מחיצות (boot, recovery, vbmeta וכו').\n"
+                  "השלכות: ⚠️ פתיחת הבוטלאודר מוחקת את כל הנתונים במכשיר — תמונות, אפליקציות, "
+                  "הגדרות וכל נתוני המשתמש! במכשירים רבים צריך קודם להפעיל 'ביטול נעילת OEM' "
+                  "באפשרויות המפתחים, ולאשר במסך הטלפון עם כפתורי הווליום."),
     "fb_reboot": ("הפעלת המכשיר מחדש (fastboot reboot)",
                   "מה זה עושה: מפעיל את המכשיר מחדש למערכת.\n"
                   "השלכות: ללא – אתחול רגיל."),
@@ -273,6 +279,14 @@ class _MainTabBar(QTabBar):
             p.drawControl(QStyle.ControlElement.CE_TabBarTab, opt)
 
 
+def _log_bidi(text: str) -> str:
+    """שורת לוג בלי עברית (למשל פלט mtkclient) — עטיפה בבידוד כיווניות משמאל לימין,
+    כך שהיא נקראת תקין אבל מיושרת לימין כמו כל הלוג."""
+    if any("\u0590" <= ch <= "\u05ff" for ch in text):
+        return text
+    return "\u2066" + text + "\u2069"
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -322,6 +336,7 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._connect_bus()
+        self._update_idle_header()   # בפתיחה: 'אין ערוץ תקשורת פעיל'
 
         if not config.mtk_available():
             self._say("error", "הכלי mtkclient לא נמצא – פעולות מול המכשיר לא יעבדו. "
@@ -848,6 +863,19 @@ class MainWindow(QMainWindow):
         gpt_row.addWidget(self._help_dot("gpt"))
         gpt_row.addStretch(1)
         g2.addLayout(gpt_row)
+        # חלופה ל-UsbDk: mtkclient דרך פורט COM (דרייבר VCOM)
+        self.serial_check = QCheckBox(
+            "חיבור דרך פורט COM (דרייבר MediaTek VCOM) — חלופה כש-UsbDk לא עובד")
+        self.serial_check.setToolTip(
+            "ב-Windows 11 עם 'בידוד ליבה' דלוק, הדרייבר UsbDk נחסם לעיתים — ואז mtkclient "
+            "לא מצליח לדבר עם המכשיר ב-BROM.\n"
+            "כשהאפשרות מסומנת, mtkclient מתחבר דרך פורט ה-COM של דרייבר ה-VCOM "
+            "(--serialport), בלי UsbDk.\n"
+            "דורש: דרייבר MediaTek VCOM מותקן (כפתור ההתקנה למטה).\n"
+            "לא חל על בדיקת האבטחה (gettargetconfig) ועל פתיחה/נעילת seccfg — "
+            "הן רצות תמיד ב-USB ישיר.")
+        self.serial_check.toggled.connect(self._set_serialport)
+        g2.addWidget(self.serial_check)
         v.addWidget(gb2)
 
         gb3 = QGroupBox("דרייברים")
@@ -1557,6 +1585,18 @@ class MainWindow(QMainWindow):
         g3.addStretch(1)
         v.addWidget(gb3)
 
+        # פתיחת בוטלאודר — אותה פעולה כמו בלשונית Bootloader (עם האזהרה ו'אישור פעולה')
+        gb4 = QGroupBox("בוטלאודר")
+        g4 = QHBoxLayout(gb4)
+        b_unlock = QPushButton("🔓 פתח בוטלאודר")
+        b_unlock.setObjectName("btnDanger")
+        b_unlock.setToolTip("fastboot flashing unlock — ⚠️ מוחק את כל הנתונים במכשיר")
+        b_unlock.clicked.connect(lambda: self._fastboot_lock_change(True))
+        g4.addWidget(b_unlock)
+        g4.addWidget(self._help_dot("fb_unlock"))
+        g4.addStretch(1)
+        v.addWidget(gb4)
+
         # "דרייברים למצב Fastboot" — בסוף הלשונית (לבקשת המשתמש)
         v.addWidget(gdrv)
         v.addStretch(1)
@@ -1600,6 +1640,10 @@ class MainWindow(QMainWindow):
 
     def _on_device_info(self, info):
         """מעדכן את לשונית Fastboot אוטומטית: שם מכשיר, מצב בוטלאודר, סוללה."""
+        if info is None or getattr(info, "mode", "none") == "none":
+            # אין מכשיר — המעבד בכותרת לא נשאר מחיבור קודם
+            self.cpu_header.clear()
+            self.cpu_header.setVisible(False)
         if info is None or getattr(info, "mode", "none") != "fastboot":
             self._fb_warned = False
             if hasattr(self, "fb_auto_label"):
@@ -1675,6 +1719,19 @@ class MainWindow(QMainWindow):
             self._set_header_boot("🔓 פתוח")
         elif unlocked in ("no", "false"):
             self._set_header_boot("🔒 נעול")
+        # מתח סוללה מתוך getvar all → לכותרת (רק אם המכשיר באמת דיווח ערך מספרי)
+        volt = (vars_ or {}).get("מתח סוללה", "")
+        mv = devinfo._parse_voltage_mv(volt) if volt else None
+        if mv:
+            prev = self._last_dev_info
+            if prev is not None and getattr(prev, "mode", "") == "fastboot":
+                prev.voltage_mv = mv
+                prev.extra = f"מתח סוללה: {volt}"
+                bus.device_info.emit(prev)
+            else:
+                bus.device_info.emit(devinfo.DeviceInfo(
+                    mode="fastboot", model=(vars_ or {}).get("מוצר", ""),
+                    voltage_mv=mv, extra=f"מתח סוללה: {volt}"))
 
     def _load_previous_logs(self):
         """#1: טוען לתצוגת הלוגים את הלוג מההפעלה הקודמת (לא נמחק בסגירה)."""
@@ -1686,12 +1743,15 @@ class MainWindow(QMainWindow):
             prev = files[-1]
             text = prev.read_text(encoding="utf-8", errors="replace").splitlines()
             self.log_view.append(
-                f'<span style="color:#8b949e">──── לוג מהפעלה קודמת ({prev.name}) ────</span>')
+                f'<p dir="rtl" style="margin:0"><span style="color:#8b949e">'
+                f'──── לוג מהפעלה קודמת ({_log_bidi(prev.name)}) ────</span></p>')
             for line in text[-400:]:
-                safe = (line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-                self.log_view.append(f'<span style="color:#8b949e">{safe}</span>')
+                safe = _log_bidi(line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+                self.log_view.append(
+                    f'<p dir="rtl" style="margin:0"><span style="color:#8b949e">{safe}</span></p>')
             self.log_view.append(
-                '<span style="color:#8b949e">──── סוף הלוג הקודם — פעולות חדשות מכאן ────</span>')
+                '<p dir="rtl" style="margin:0"><span style="color:#8b949e">'
+                '──── סוף הלוג הקודם — פעולות חדשות מכאן ────</span></p>')
         except Exception:
             pass
 
@@ -1856,6 +1916,10 @@ class MainWindow(QMainWindow):
         v = QVBoxLayout(w)
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
+        # כל שורות הלוג מימין לשמאל — גם שורות שמתחילות באנגלית (פלט mtkclient)
+        _opt = self.log_view.document().defaultTextOption()
+        _opt.setTextDirection(Qt.LayoutDirection.RightToLeft)
+        self.log_view.document().setDefaultTextOption(_opt)
         v.addWidget(self.log_view)
         btns = QHBoxLayout()
         b1 = QPushButton("💾 ייצוא לוג")
@@ -1917,10 +1981,11 @@ class MainWindow(QMainWindow):
             self._last_error = message
         colors = theme.LOG_COLORS[self.dark]
         stamp = datetime.now().strftime("%H:%M:%S")
-        safe = message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        safe = _log_bidi(message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
         self.log_view.append(
+            f'<p dir="rtl" style="margin:0">'
             f'<span style="color:{colors["stamp"]}">[{stamp}]</span> '
-            f'<span style="color:{colors.get(level, colors["info"])}">{safe}</span>')
+            f'<span style="color:{colors.get(level, colors["info"])}">{safe}</span></p>')
 
     def _busy_progress(self, on: bool):
         """מד התקדמות 'רץ' (marquee) כשאין אחוזים — כדי שתמיד יהיה סימן חיים."""
@@ -2131,14 +2196,36 @@ class MainWindow(QMainWindow):
             "לחץ 'ניסיון חוזר' — ואז חבר את המכשיר.")
         cancel_btn = dlg.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
         retry_btn = None
+        serial_btn = None
         if self._retry_action is not None:
             retry_btn = dlg.addButton("🔄 ניסיון חוזר", QMessageBox.ButtonRole.AcceptRole)
             dlg.setDefaultButton(retry_btn)
+            # חלופה ל-UsbDk: ניסיון דרך פורט COM (דרייבר VCOM) — אם עוד לא מסומן
+            if not self.serial_check.isChecked():
+                serial_btn = dlg.addButton("🔌 נסה דרך פורט COM (VCOM)",
+                                           QMessageBox.ButtonRole.ActionRole)
+                serial_btn.setToolTip(
+                    "חלופה כש-UsbDk חסום (למשל Windows 11 עם בידוד ליבה): "
+                    "mtkclient יתחבר דרך דרייבר ה-VCOM. דורש דרייבר MediaTek VCOM מותקן.")
         dlg.exec()
-        if retry_btn is not None and dlg.clickedButton() is retry_btn:
+        clicked = dlg.clickedButton()
+        if serial_btn is not None and clicked is serial_btn:
+            self.serial_check.setChecked(True)   # נשאר מסומן לפעולות הבאות
+            clicked = retry_btn
+        if retry_btn is not None and clicked is retry_btn:
             action = self._retry_action
             if action is not None:
                 self._retry_now(action)
+
+    def _set_serialport(self, on: bool):
+        """מתג 'חיבור דרך פורט COM' — חל על פעולות mtkclient הבאות (לא על פעולה שרצה)."""
+        from ..core.mtk_bridge import MtkCommand
+        MtkCommand.use_serialport = bool(on)
+        if on:
+            self._say("info", "mtkclient: חיבור דרך פורט COM (דרייבר VCOM, --serialport) — "
+                              "במקום USB ישיר (UsbDk).")
+        else:
+            self._say("info", "mtkclient: חיבור USB ישיר (UsbDk) — ברירת המחדל.")
 
     def _cancel_job(self):
         if not job_manager.busy:
@@ -2216,6 +2303,13 @@ class MainWindow(QMainWindow):
 
         def work():
             try:
+                # חיבור חדש ב-ADB: הכותרת מתעדכנת מיד אחרי 'adb devices' (מהיר),
+                # והפרטים (דגם/מעבד/סוללה) מושלמים כשהקריאה המלאה מסתיימת
+                if tool in ("adb", "auto") and self._last_probe_mode != "adb":
+                    _adb = config.find_adb_exe()
+                    if _adb and devinfo.adb_device_state(str(_adb)) == "device":
+                        bus.device_info.emit(devinfo.DeviceInfo(
+                            mode="adb", model="מחובר — קורא פרטים…"))
                 if tool == "brom":
                     # נעול על mtkclient — לא שולחים פקודות ADB בכלל
                     info = (devinfo.DeviceInfo(mode="brom", cpu=devinfo._norm_cpu(brom_cpu))
@@ -2227,18 +2321,24 @@ class MainWindow(QMainWindow):
                 # הודעות מעבר בין שלבי הזיהוי — רק כשהמצב בפועל משתנה
                 mode = getattr(info, "mode", "none")
                 if mode != self._last_probe_mode:
+                    # כל הודעה מציינת במפורש את הערוץ ומה נבדק — כדי שאפשר יהיה לוודא
+                    # שערוץ מפורש לא מנסה ערוצים אחרים
+                    tag = f"[ערוץ {self._channel_label(tool) if tool != 'auto' else 'אוטומטי'}]"
+                    checked = {"adb": "ADB בלבד", "brom": "BROM/Preloader בלבד",
+                               "auto": "ADB ואז BROM/Preloader"}.get(tool, tool)
                     if mode == "adb":
-                        self._say("success", f"מכשיר זוהה ב-ADB — {info.model or info.cpu}")
+                        self._say("success", f"{tag} מכשיר זוהה ב-ADB — {info.model or info.cpu}")
                     elif mode == "brom":
                         self._say("warning",
-                                  "לא נמצא מכשיר במצב ADB — נמצא פורט BROM/Preloader. "
-                                  "קרא GPT כדי לזהות את המעבד (mtkclient).")
+                                  f"{tag} נמצא פורט BROM/Preloader"
+                                  + (" (לא נמצא מכשיר ב-ADB)" if tool == "auto" else "")
+                                  + ". קרא GPT כדי לזהות את המעבד (mtkclient).")
                         bus.brom_detected.emit()   # הצעת GPT ב-thread הראשי
-                    elif tool == "adb":
-                        self._say("warning", "המכשיר לא עונה ב-ADB (נותק או נעול) — "
+                    elif tool == "adb" and self._last_probe_mode == "adb":
+                        self._say("warning", f"{tag} המכשיר לא עונה ב-ADB (נותק או נעול) — "
                                              "ממשיך לחכות לו ב-ADB בלבד.")
                     else:
-                        self._say("info", "אין מכשיר מחובר (בדיקת ADB/BROM)")
+                        self._say("info", f"{tag} אין מכשיר מחובר (נבדק: {checked})")
                     self._last_probe_mode = mode
                     # אחרי זיהוי ראשון — ננעלים על הערוץ שעובד (עד שהמשתמש יחליף)
                     if tool == "auto" and mode in ("adb", "brom"):
@@ -2486,7 +2586,19 @@ class MainWindow(QMainWindow):
         self.adb_info_view.setPlainText("קורא מהמכשיר…")
 
         def work():
-            details = devinfo.collect_adb_details(str(adb))
+            state = devinfo.adb_device_state(str(adb))
+            if state == "unauthorized":
+                bus.adb_details.emit(
+                    "המכשיר מחובר, אבל ניפוי הבאגים לא אושר.\n\n"
+                    "אשר במסך המכשיר את הבקשה 'לאפשר ניפוי באגים USB?' ונסה שוב.", "warning")
+                return
+            if state == "offline":
+                bus.adb_details.emit(
+                    "המכשיר מחובר אבל לא מגיב ב-ADB (offline).\n\n"
+                    "נתק וחבר את הכבל, ואם צריך — כבה והפעל מחדש את ניפוי הבאגים במכשיר.",
+                    "warning")
+                return
+            details = devinfo.collect_adb_details(str(adb)) if state == "device" else {}
             if details:
                 text = "\n".join(f"{k}: {v}" for k, v in details.items())
                 bus.adb_details.emit(text, "success")
@@ -2496,15 +2608,18 @@ class MainWindow(QMainWindow):
                     info = devinfo.DeviceInfo(
                         mode="adb",
                         model=details.get("דגם", ""),
-                        cpu=devinfo._norm_cpu(details.get("מעבד (platform)", "")
-                                              or details.get("חומרה", "")),
+                        # ro.hardware הוא לרוב שם הדגם — ממנו רק שם מעבד אמיתי (MTxxxx)
+                        cpu=(devinfo._norm_cpu(details["מעבד (platform)"])
+                             if details.get("מעבד (platform)")
+                             else devinfo._strict_cpu(details.get("חומרה", ""))),
                         battery=int(lvl) if lvl.isdigit() else None)
                     bus.device_info.emit(info)
                 except Exception:
                     pass
             else:
-                text = ("לא נמצא מכשיר במצב ADB.\n\nבדוק: המכשיר דלוק, ניפוי באגים USB "
-                        "מאושר (ראה כפתור ההוראות בדיאלוג הפתיחה), והדרייבר מותקן.")
+                text = ("המכשיר לא מחובר במצב מפתחים (ניפוי באגים USB).\n\n"
+                        "בדוק: המכשיר דלוק ומחובר בכבל, ניפוי באגים USB מופעל ומאושר "
+                        "(ראה כפתור ההוראות בדיאלוג הפתיחה), והדרייבר מותקן.")
                 bus.adb_details.emit(text, "warning")
 
         threading.Thread(target=work, daemon=True).start()
@@ -3378,8 +3493,10 @@ class MainWindow(QMainWindow):
             return
         self._active_tool = tool
         self._last_probe_mode = None
+        self._update_idle_header()
         if tool == "none":
             self._say("info", "ערוץ תקשורת: לא נבחר — אין חיפוש מכשיר עד שתבחר ערוץ.")
+            bus.device_info.emit(devinfo.DeviceInfo(mode="none"))   # איפוס הכותרת מיד
             return
         names = {"auto": "אוטומטי", "adb": "ADB", "fastboot": "Fastboot",
                  "brom": "mtkclient (BROM)"}
@@ -3392,10 +3509,25 @@ class MainWindow(QMainWindow):
         i = self.tool_combo.findData(tool)
         if i < 0:
             return
+        if tool != self._active_tool:
+            self._say("info", f"🔎 ערוץ תקשורת: {self._channel_label(tool)} — "
+                              "מחפש מכשיר בערוץ הזה בלבד.")
         self._active_tool = tool
         self.tool_combo.blockSignals(True)
         self.tool_combo.setCurrentIndex(i)
         self.tool_combo.blockSignals(False)
+        self._update_idle_header()
+
+    def _update_idle_header(self):
+        """טקסט הכותרת כשאין מכשיר: 'אין ערוץ תקשורת פעיל' / 'עדיין אין חיבור בערוץ X'."""
+        tool = self._active_tool
+        if tool == "none":
+            text = "אין ערוץ תקשורת פעיל — בחר ערוץ"
+        elif tool == "auto":
+            text = "עדיין אין חיבור (ערוץ אוטומטי)"
+        else:
+            text = f"עדיין אין חיבור בערוץ {self._channel_label(tool)}"
+        self.device_status.set_idle_text(text)
 
     # ---------------------------------------------------------- בוטלאודר דרך ADB
     def _adb_boot_read(self):
@@ -3722,10 +3854,13 @@ class MainWindow(QMainWindow):
             self._gpt_timeout_dialog = dlg
             dlg.show()
             # הכפתור של Qt להרחבת הפרטים — נחליף את נוסח האנגלית שלו לעברית ברורה
+            # (ל-Qt אין שם קבוע לכפתור — הוא הכפתור היחיד שלא נוסף על ידינו)
             from PySide6.QtWidgets import QPushButton as _QBtn
-            details_btn = dlg.findChild(_QBtn, "detailsButton")
-            if details_btn is not None:
-                details_btn.setText("🔽 הצג פרטים נוספים")
+            ours = set(dlg.buttons())
+            for details_btn in dlg.findChildren(_QBtn):
+                if details_btn not in ours:
+                    details_btn.setText("🔽 הצג פרטים נוספים")
+                    break
             dlg.exec()
             self._gpt_timeout_dialog = None
             if dlg.clickedButton() is retry:
@@ -3847,24 +3982,44 @@ class MainWindow(QMainWindow):
         if not ps1.is_file():
             QMessageBox.warning(self, "חסר", f"לא נמצא הקובץ:\n{ps1}")
             return
-        if QMessageBox.question(
-                self, "תקן דרייבר למכשיר המחובר",
-                "התוכנה תחפש מכשיר Android/MediaTek שמחובר עכשיו בלי דרייבר, "
-                "ותצמיד לו את הדרייבר המתאים (ADB / Fastboot / BROM).\n\n"
-                "ודא שהמכשיר מחובר במצב הרצוי. תידרש הרשאת מנהל (UAC).\nלהמשיך?",
-                _YES | _NO) != _YES:
+        wait_s = 60   # כמה זמן לחכות לחיבור במצב BROM
+        q = QMessageBox(self)
+        q.setIcon(QMessageBox.Icon.Question)
+        q.setWindowTitle("תקן דרייבר למכשיר המחובר")
+        q.setText("התוכנה תחפש מכשיר Android/MediaTek שמחובר בלי דרייבר, "
+                  "ותצמיד לו את הדרייבר המתאים (ADB / Fastboot / BROM).")
+        q.setInformativeText(
+            "• 'תקן עכשיו' — למכשיר שכבר מחובר (ADB / Fastboot).\n"
+            f"• 'חכה לחיבור BROM' — במצב BROM המכשיר מופיע רק לשניות ספורות: "
+            f"לחץ, אשר את חלון ההרשאה, ואז חבר את המכשיר במצב BROM — התוכנה "
+            f"מחכה לו עד {wait_s} שניות ומתקנת ברגע שהוא מופיע.\n\n"
+            "תידרש הרשאת מנהל (UAC).")
+        b_now = q.addButton("תקן עכשיו", QMessageBox.ButtonRole.AcceptRole)
+        b_brom = q.addButton(f"⏳ חכה לחיבור BROM ({wait_s} שניות)",
+                             QMessageBox.ButtonRole.ActionRole)
+        q.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
+        q.setDefaultButton(b_now)
+        q.exec()
+        clicked = q.clickedButton()
+        if clicked is not b_now and clicked is not b_brom:
             return
+        wait = wait_s if clicked is b_brom else 0
         import tempfile
         report = Path(tempfile.gettempdir()) / "askateroov_fix_driver.txt"
         try:
             report.unlink()
         except OSError:
             pass
-        self._say("info", "מתקן דרייבר למכשיר המחובר — אשר את חלון ההרשאה…")
+        if wait:
+            self._say("info", f"תיקון דרייבר BROM: אשר את חלון ההרשאה, ואז חבר את המכשיר "
+                              f"במצב BROM — ממתין עד {wait} שניות…")
+            self.status_label.setText(f"⏳ ממתין לחיבור במצב BROM (עד {wait} שניות)…")
+        else:
+            self._say("info", "מתקן דרייבר למכשיר המחובר — אשר את חלון ההרשאה…")
 
         def work():
             args = (f"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{ps1}\" "
-                    f"-ToolsDir \"{tools}\" -ReportPath \"{report}\"")
+                    f"-ToolsDir \"{tools}\" -ReportPath \"{report}\" -WaitBromSeconds {wait}")
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
             try:
                 subprocess.run(["powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
@@ -3889,17 +4044,22 @@ class MainWindow(QMainWindow):
     def _on_driver_fix_result(self, rows):
         ok = [r for r in rows if r[0] == "OK"]
         err = [r for r in rows if r[0] == "ERR"]
+        info = [r for r in rows if r[0] == "INFO"]
         lines = []
         for _st, kind, text in ok:
             lines.append(f"✅ {kind}: הותקן — {text}")
         for _st, kind, text in err:
             lines.append(f"❌ {kind}: {text}" if kind else f"❌ {text}")
-        if not ok and not err:
+        for _st, kind, text in info:
+            lines.append(f"ℹ️ {kind}: {text}" if kind else f"ℹ️ {text}")
+        self.status_label.setText("מוכן")
+        if not ok and not err and not info:
             lines.append("לא נמצא מכשיר Android מחובר שחסר לו דרייבר.\n"
                          "אם המכשיר לא מזוהה — ודא שהוא מחובר ובמצב הנכון (ADB / Fastboot / BROM).")
         for l in lines:
-            self._say("success" if l.startswith("✅") else "warning", l)
-        (QMessageBox.information if ok and not err else QMessageBox.warning)(
+            self._say("success" if l.startswith("✅")
+                      else "info" if l.startswith("ℹ️") else "warning", l)
+        (QMessageBox.information if (ok or info) and not err else QMessageBox.warning)(
             self, "תקן דרייבר למכשיר המחובר", "\n".join(lines))
 
     def _install_mtk_vcom(self):
@@ -4192,7 +4352,7 @@ class MainWindow(QMainWindow):
         return mode or "none"
 
     def _channel_label(self, ch: str) -> str:
-        return {"adb": "ADB", "fastboot": "Fastboot",
+        return {"adb": "ADB", "fastboot": "Fastboot", "auto": "אוטומטי",
                 "brom": "mtkclient (BROM)", "none": "לא מזוהה"}.get(ch, ch)
 
     def _bootloader_check_router(self):

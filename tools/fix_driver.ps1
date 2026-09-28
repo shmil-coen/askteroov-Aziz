@@ -8,7 +8,10 @@
 param(
   [Parameter(Mandatory=$true)][string]$ToolsDir,
   [string]$ReportPath = "",
-  [string]$OnlyInstance = ""
+  [string]$OnlyInstance = "",
+  # >0: ממתינים עד כך וכך שניות שמכשיר יתחבר במצב BROM/Preloader ומתקנים רק אותו
+  # (הפורט קיים רק שניות ספורות אחרי החיבור — לכן בדיקה חד-פעמית מפספסת אותו)
+  [int]$WaitBromSeconds = 0
 )
 $ErrorActionPreference = "Stop"
 
@@ -119,12 +122,32 @@ public static class HskDrv {
 
 $report = New-Object System.Collections.Generic.List[string]
 function Say($s) { $report.Add($s) }
+# המתנה לחיבור במצב BROM/Preloader — ברגע שההתקן מופיע, מתקנים רק אותו
+if ($WaitBromSeconds -gt 0) {
+  $deadline = (Get-Date).AddSeconds($WaitBromSeconds)
+  $seen = @()
+  while ((Get-Date) -lt $deadline) {
+    $seen = @(Get-PnpDevice -PresentOnly -InstanceId 'USB\VID_0E8D*' -ErrorAction SilentlyContinue |
+      Where-Object { $_.InstanceId -match '^USB\\VID_0E8D&PID_(0003|2000)' })
+    if ($seen.Count -gt 0) { break }
+    Start-Sleep -Milliseconds 300
+  }
+  $needFix = @($seen | Where-Object { $_.Status -ne 'OK' })
+  if ($seen.Count -eq 0) {
+    Say("ERR`tBROM/Preloader`tהמכשיר לא זוהה במצב BROM תוך $WaitBromSeconds שניות — חבר אותו שוב במצב BROM ונסה שוב.")
+  } elseif ($needFix.Count -eq 0) {
+    Say("INFO`tBROM/Preloader`tהמכשיר זוהה במצב BROM, והדרייבר שלו כבר תקין — אין מה לתקן.")
+  } else {
+    $OnlyInstance = $needFix[0].InstanceId
+  }
+}
 
 # התקנים שכרגע בלי דרייבר (או בבעיה)
 $bad = @(Get-PnpDevice -PresentOnly | Where-Object {
   $_.InstanceId -like 'USB\VID_*' -and $_.Status -ne 'OK'
 })
 if ($OnlyInstance) { $bad = @($bad | Where-Object { $_.InstanceId -eq $OnlyInstance }) }
+elseif ($WaitBromSeconds -gt 0) { $bad = @() }   # מצב המתנה ל-BROM בלי התקן לתיקון — לא נוגעים באחרים
 
 $ids = @{}
 foreach ($line in [HskDrv]::ListUsb().Split("`n")) {
@@ -156,6 +179,9 @@ foreach ($dev in $bad) {
     Say("ERR`t$what`t$($_.Exception.Message)")
   }
 }
-if ($fixed -eq 0 -and $report.Count -eq 0) { Say("NONE`t`tלא נמצא מכשיר Android מחובר שחסר לו דרייבר") }
+if ($WaitBromSeconds -gt 0 -and $OnlyInstance -and $report.Count -eq 0) {
+  Say("ERR`tBROM/Preloader`tהמכשיר יצא ממצב BROM לפני שהדרייבר הוצמד — חבר אותו שוב במצב BROM ונסה שוב.")
+}
+if ($fixed -eq 0 -and $report.Count -eq 0 -and $WaitBromSeconds -le 0) { Say("NONE`t`tלא נמצא מכשיר Android מחובר שחסר לו דרייבר") }
 if ($ReportPath) { $report | Set-Content -Path $ReportPath -Encoding UTF8 }
 $report | ForEach-Object { Write-Output $_ }

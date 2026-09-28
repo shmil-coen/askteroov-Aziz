@@ -18,15 +18,33 @@ from typing import Callable, Optional
 from . import config   # PYTHON_EXE נקרא בזמן ריצה — כך פייתון שהותקן עכשיו נכנס לשימוש מיד
 from .logs import log
 
+# פייתון נייד (עם קובץ python3xx._pth) לא מוסיף את תיקיית הסקריפט לנתיבי הייבוא —
+# ואז mtk.py של התוכנה היה טוען את mtkclient של התיקייה הניידת (או נכשל אם אין שם).
+# המעטפת מוסיפה את תיקיית mtk.py ראשונה בנתיבים ומריצה אותו כרגיל (כמו 'python mtk.py').
+_MTK_BOOT = ("import os, runpy, sys; p = sys.argv[1]; "
+             "sys.path.insert(0, os.path.dirname(os.path.abspath(p))); "
+             "sys.argv = sys.argv[1:]; runpy.run_path(p, run_name='__main__')")
+
 
 class MtkCommand:
     """ייצוג פקודת mtk.py — הרצה רק לאחר אישור מפורש."""
+
+    # חיבור דרך פורט COM (דרייבר MediaTek VCOM) במקום USB ישיר (UsbDk) — חלופה
+    # כש-UsbDk חסום (למשל Windows 11 עם בידוד ליבה). נקבע מהממשק.
+    use_serialport = False
+    # פקודות mtk.py שמקבלות --serialport בגרסת mtkclient הארוזה
+    # (gettargetconfig ו-da seccfg — לא; הן תמיד רצות ב-USB ישיר)
+    SERIAL_CAPABLE = {"printgpt", "gpt", "r", "rl", "rf", "rs", "w", "wf", "wl",
+                      "e", "es", "footer", "reset", "payload", "script"}
 
     def __init__(self, args: list[str]):
         if config.PYTHON_EXE is None or not config.MTK_SCRIPT.is_file():
             raise RuntimeError(
                 "mtkclient לא נמצא. הגדר ASKATEROOV_PYTHON_ROOT או ודא ש-MTKCliantPortable קיים."
             )
+        if (MtkCommand.use_serialport and args and args[0] in self.SERIAL_CAPABLE
+                and "--serialport" not in args):
+            args = list(args) + ["--serialport"]   # מופיע גם בחלון 'אישור פעולה'
         self.args = args
         self.process: Optional[subprocess.Popen] = None
         self.returncode: Optional[int] = None
@@ -53,7 +71,9 @@ class MtkCommand:
         """מפעיל את הפקודה ברקע. נקרא רק על ידי מנהל האישורים."""
 
         def run():
-            cmd = [str(config.PYTHON_EXE), str(config.MTK_SCRIPT)] + self.args
+            # דרך _MTK_BOOT (ולא 'python mtk.py') — כדי שגם פייתון נייד יטען את mtkclient
+            # שליד mtk.py; אותה הרצה בדיוק (בלי חלון), רק תיקיית הסקריפט נוספת לנתיבים
+            cmd = [str(config.PYTHON_EXE), "-c", _MTK_BOOT, str(config.MTK_SCRIPT)] + self.args
             log.info(f"רץ: mtk {' '.join(self.args)}")
             try:
                 flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0

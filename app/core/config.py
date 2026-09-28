@@ -14,7 +14,7 @@ from pathlib import Path
 
 APP_NAME = "Askateroov"
 APP_TITLE = "הסקטארוב — ערכת ניהול מכשירי MediaTek"
-APP_VERSION = "0.7.3"
+APP_VERSION = "0.7.6"
 
 # פרטי חלון "אודות" — ממולאים על ידי המשתמש (תזכורת נשמרת בקובץ כללים.txt)
 APP_ABOUT = "הסקטארוב ערכה לניהול מכשירי אנדרואיד\nמאפשר את ניהול המכשיר בקלות ולכל רמת ידע"     # תיאור המוצר
@@ -24,8 +24,50 @@ APP_AUTHOR = "פותח ע\"י עזיז@ במתמחיםטופ (בסיועAI)\nכ�
 # • הרצה מקוד המקור: תיקיית הפרויקט (כמו תמיד).
 # • גרסה מקומפלת (exe יחיד): C:\\ProgramData\\Askateroov — תיקייה קבועה ישר מתחת לכונן,
 #   מחוץ לתיקיית המשתמש, שלא נמחקת ולא זזה עם ה-exe. שם נשמרים workspace (שאיבות,
-#   לוגים, בנק, גיבויים) והכלים (tools), שנפרסים מתוך ה-exe פעם אחת לכל גרסה.
+#   לוגים, בנק, גיבויים) והכלים (tools), שמתעדכנים מתוך ה-exe בכל בנייה חדשה.
 FROZEN = bool(getattr(sys, "frozen", False))
+
+
+def _build_stamp() -> str:
+    """חותמת של ה-exe הנוכחי (גרסה + גודל + זמן שינוי) — משתנה בכל בנייה חדשה,
+    גם כשמספר הגרסה נשאר אותו דבר."""
+    try:
+        st = Path(sys.executable).stat()
+        return f"{APP_VERSION}|{st.st_size}|{int(st.st_mtime)}"
+    except OSError:
+        return APP_VERSION
+
+
+def _same_file(a: Path, b: Path) -> bool:
+    """האם שני הקבצים זהים בתוכן (בודק גודל קודם — מהיר)."""
+    import filecmp
+    try:
+        return a.stat().st_size == b.stat().st_size and filecmp.cmp(a, b, shallow=False)
+    except OSError:
+        return False
+
+
+def _sync_tools(src: Path, dst: Path) -> bool:
+    """מעדכן את tools מתוך ה-exe: מעתיק רק קבצים חדשים או שהשתנו.
+
+    לא מוחק כלום ולא נוגע בקבצים שאין להם מקבילה ב-exe (למשל קבצים שכלי יצר
+    בתיקייה). workspace — שאיבות, גיבויים, לוגים, בנק — נמצא מחוץ ל-tools ולא נוגעים בו.
+    מחזיר False אם קובץ כלשהו לא הועתק (למשל נעול כי adb עדיין רץ) — ואז ינוסה שוב
+    בהפעלה הבאה.
+    """
+    ok = True
+    for s in src.rglob("*"):
+        if not s.is_file():
+            continue
+        d = dst / s.relative_to(src)
+        if d.is_file() and _same_file(s, d):
+            continue
+        try:
+            d.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(s, d)
+        except OSError:
+            ok = False
+    return ok
 
 
 def _frozen_root() -> Path:
@@ -34,13 +76,15 @@ def _frozen_root() -> Path:
     src = Path(getattr(sys, "_MEIPASS", "")) / "tools"
     dst = root / "tools"
     marker = dst / ".version"
+    stamp = _build_stamp()
     try:
         current = marker.read_text(encoding="utf-8").strip()
     except OSError:
         current = ""
-    if src.is_dir() and current != APP_VERSION:
-        shutil.copytree(src, dst, dirs_exist_ok=True)   # פריסת הכלים — פעם אחת לכל גרסה
-        marker.write_text(APP_VERSION, encoding="utf-8")
+    if src.is_dir() and current != stamp:
+        # בנייה חדשה (או גרסה חדשה) — מעדכנים רק את מה שהתחדש
+        if _sync_tools(src, dst):
+            marker.write_text(stamp, encoding="utf-8")
     return root
 
 

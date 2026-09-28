@@ -1,8 +1,8 @@
-# הסקטארוב — ערכת ניהול מכשירי MediaTek
+# הסקטארוב
+
+**גרסה: 0.7.3**
 
 תוכנה לניהול, שאיבה (Readback) וצריבה (Flash) של מכשירי MediaTek — ממשק גרפי בעברית מעל **mtkclient**, עם תמיכה ב-SP Flash Tool Scatter.
-
-גרסה נוכחית: **0.7.3**
 
 ## ⚠️ אזהרות בטיחות
 
@@ -15,7 +15,7 @@
 
 - Windows 10/11
 - **Python ניידת (MTKCliantPortable)** — מספקת את מפרש Python ואת PySide6. נתיב ברירת המחדל:
-  `C:\Users\karnaf\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable`
+  `
   (ניתן לשנות במשתנה הסביבה `ASKATEROOV_PYTHON_ROOT`, או בעריכת הנתיב בראש `app\core\config.py`).
 - **הכלים ארוזים בתוך הפרויקט** — אין צורך להתקין אותם בנפרד:
   - `tools\mtk\mtk.py` + `tools\mtk\mtkclient` — מנוע ה-mtkclient (מועדף על העותק שבתוך התיקייה הניידת).
@@ -29,8 +29,7 @@
 לחיצה כפולה על **`הסקטארוב.bat`** בתיקיית הפרויקט, או בשורת פקודה:
 
 ```bat
-cd C:\Users\karnaf\Desktop\askateroov
-C:\Users\karnaf\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe run.py
+cd %USERPROFILE%\Desktop\
 ```
 
 `run.py` הוא נקודת הכניסה בפועל: הוא מוסיף את תיקיית הפרויקט ל-`sys.path` ומעלה את החלון הראשי.
@@ -237,56 +236,4 @@ Windows מצמיד דרייבר לפי המזהה שהמכשיר מכריז על
 - פעולה שנכשלה מציגה חלון שגיאה ברור (כולל השגיאה האחרונה מהלוג) — כדי שלא
   ייחשב בטעות שהיא הצליחה.
 
-## מבנה הקוד
-
-```
-run.py                 # נקודת כניסה (רץ בפועל)
-הסקטארוב.bat           # מפעיל את run.py עם ה-Python הניידת
-app/
-  main.py              # העלאת QApplication והחלון הראשי
-  core/
-    config.py          # נתיבים, גרסאות, מחיצות רגישות, איתור python/adb/fastboot
-    logs.py            # מערכת לוגים מרכזית
-    gpt_parser.py      # פענוח GPT (פלט mtk + קובץ בינארי)
-    scatter.py         # מחולל Scatter מלא (עם שם מעבד חובה)
-    scatter_bank.py    # בנק הסקטארים — ארכיון קובצי Scatter לפי מעבד/מכשיר
-    checksums.py       # SHA256/MD5, גדלים
-    safety.py          # אזהרות, אימות גודל/סכום
-    mtk_bridge.py      # הרצת mtk.py עם פלט חי + עזרי progress
-    jobs.py            # תוכניות עבודה (רצף שלבים), גיבוי לפני צריבה, גיבוי NVRAM, פעולות Fastboot
-    port_monitor.py    # ניטור פורטים חי
-    pyenv.py           # איתור סביבת Python/פייתון ניידת והתקנתה
-    device_info.py     # מידע על המכשיר דרך ADB
-    adb_boot.py        # בוטלאודר דרך ADB
-    adb_files.py       # סייר קבצים וניהול אפליקציות דרך ADB
-    apk_info.py        # פענוח APK / XAPK / APKM / APKS
-    fastboot_bridge.py # הרצת fastboot.exe עם פלט חי
-    pyinstall.py       # התקנה אוטומטית של פייתון + הספריות של mtkclient
-    drivers.py         # בדיקת דרייברים במחשב (קריאה בלבד — pnputil / קובצי INF; VCOM מזוהה לפי ספק MediaTek + מחלקת יציאות COM)
-  gui/
-    bus.py             # אותות Qt (thread-safe)
-    main_window.py     # החלון הראשי + כל הלשוניות + חלון אישור פעולה + הגדרות
-    theme.py           # ערכות צבע (כחול עמוק / כהה) + שמירת הסדר הגמיש
-    device_status.py   # כותרת מצב המכשיר
-    icons.py           # סמלים מצוירים (גלגל שיניים, מידע, שאיבה, צריבה)
-    logo.py            # הלוגו וסמל הבנק
-tests/                 # בדיקות יחידה (run_tests.py — בלי pytest)
-tools/                 # mtkclient, adb.exe, fastboot.exe, usbdk.msi, mediatek_driver (VCOM), fastboot_driver, fix_driver.ps1 (ארוזים)
-workspace/             # dumps · scatter · backups · logs · scatter_bank
-```
-
-## הרצת בדיקות
-
-```bat
-cd C:\Users\karnaf\Desktop\askateroov
-C:\Users\karnaf\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe tests\run_tests.py
-```
-
-## בעיות נפוצות
-
-| תופעה | פתרון |
-|---|---|
-| המכשיר לא מזוהה | נתק את הסוללה/כבה, חבר USB תוך כדי לחיצה על הכפתורים (BROM mode) |
-| "mtkclient לא נמצא" | ודא שהנתיב ל-MTKCliantPortable נכון (`ASKATEROOV_PYTHON_ROOT`) |
-| הדרייבר לא מותקן / המכשיר לא מזוהה ב-Fastboot | הרץ 🩺 בדיקת דרייבר בלשונית המתאימה, והשתמש בכפתור ההורדה שלידו |
-| צריבה נכשלת | בדוק את קובץ ה-log ב-`workspace\logs`, וודא שה-Image תואם לגודל המחיצה |
+##

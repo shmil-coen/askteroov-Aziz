@@ -275,15 +275,8 @@ workspace/             # dumps · scatter · backups · logs · scatter_bank
 ## הרצת בדיקות
 
 ```bat
-cd C:\Users\karnaf\Desktop\askateroov
-C:\Users\karnaf\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe tests\run_tests.py
+
 ```
 
 ## בעיות נפוצות
-
-| תופעה | פתרון |
-|---|---|
-| המכשיר לא מזוהה | נתק את הסוללה/כבה, חבר USB תוך כדי לחיצה על הכפתורים (BROM mode) |
-| "mtkclient לא נמצא" | ודא שהנתיב ל-MTKCliantPortable נכון (`ASKATEROOV_PYTHON_ROOT`) |
-| הדרייבר לא מותקן / המכשיר לא מזוהה ב-Fastboot | הרץ 🩺 בדיקת דרייבר בלשונית המתאימה, והשתמש בכפתור ההורדה שלידו |
-| צריבה נכשלת | בדוק את קובץ ה-log ב-`workspace\logs`, וודא שה-Image תואם לגודל המחיצה |
+|

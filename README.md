@@ -15,7 +15,7 @@
 
 - Windows 10/11
 - **Python ניידת (MTKCliantPortable)** — מספקת את מפרש Python ואת PySide6. נתיב ברירת המחדל:
-  `%USERPROFILE%\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable`
+  `
   (ניתן לשנות במשתנה הסביבה `ASKATEROOV_PYTHON_ROOT`, או בעריכת הנתיב בראש `app\core\config.py`).
 - **הכלים ארוזים בתוך הפרויקט** — אין צורך להתקין אותם בנפרד:
   - `tools\mtk\mtk.py` + `tools\mtk\mtkclient` — מנוע ה-mtkclient (מועדף על העותק שבתוך התיקייה הניידת).
@@ -29,8 +29,7 @@
 לחיצה כפולה על **`הסקטארוב.bat`** בתיקיית הפרויקט, או בשורת פקודה:
 
 ```bat
-cd %USERPROFILE%\Desktop\askateroov
-%USERPROFILE%\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe run.py
+cd %USERPROFILE%\Desktop\
 ```
 
 `run.py` הוא נקודת הכניסה בפועל: הוא מוסיף את תיקיית הפרויקט ל-`sys.path` ומעלה את החלון הראשי.
@@ -278,8 +277,7 @@ workspace/             # dumps · scatter · backups · logs · scatter_bank
 ## הרצת בדיקות
 
 ```bat
-cd %USERPROFILE%\Desktop\askateroov
-%USERPROFILE%\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe tests\run_tests.py
+
 ```
 
 ## בעיות נפוצות

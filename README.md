@@ -29,9 +29,6 @@
 לחיצה כפולה על **`הסקטארוב.bat`** בתיקיית הפרויקט, או בשורת פקודה:
 
 ```bat
-cd C:\Users\karnaf\Desktop\askateroov
-C:\Users\karnaf\Downloads\אנדרואיד\MTKCliantPortable\MTKCliantPortable\python.exe run.py
-```
 
 `run.py` הוא נקודת הכניסה בפועל: הוא מוסיף את תיקיית הפרויקט ל-`sys.path` ומעלה את החלון הראשי.
 

@@ -1,2 +1,11 @@
 # תיקייה פרטית - כל מה שישב בתוכה לא יעלה ל-GitHub
-"לא לגיטהב/"
+לא לגיטהב/
+__pycache__/
+*.pyc
+build/
+dist/
+workspace/logs/
+workspace/app_cache/
+.freebuff/
+Claude outputs/
+text-review.json

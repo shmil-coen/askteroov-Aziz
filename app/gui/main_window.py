@@ -277,7 +277,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{config.APP_TITLE} v{config.APP_VERSION}")
-        self.resize(1100, 740)
+        # גודל התחלתי 1100x740, אבל לא יותר מהשטח הזמין בפועל במסך —
+        # במסכים קטנים/עם הגדלת תצוגה (DPI Scaling) זה מונע חלון שחלקו
+        # נשפך מעבר לגבול הנראה של המסך ונחתך.
+        _w, _h = 1100, 740
+        _screen = QApplication.primaryScreen()
+        if _screen is not None:
+            _avail = _screen.availableGeometry()
+            _w = min(_w, max(600, _avail.width() - 20))
+            _h = min(_h, max(400, _avail.height() - 20))
+        self.resize(_w, _h)
         # RTL: הממשק כולו מימין לשמאל
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 

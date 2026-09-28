@@ -40,7 +40,29 @@ def _install_crash_logging(log) -> None:
     sys.excepthook = _hook
 
 
+def _set_windows_dpi_awareness() -> None:
+    """מצהיר ל-Windows שהתהליך מודע בעצמו על הגדלת תצוגה (DPI) של כל מסך —
+    לפני שנוצר חלון ראשון כלשהו.  בלעדי זה, במערכות עם הגדלת תצוגה
+    (נפוץ במסכי מחשב נייד), Windows עלול למתוח (bitmap scaling) את חלון
+    האפליקציה מבלי לשאול אותה — ואז חלק מהחלון נשפך מעבר לגבול המסך ונחתך
+    (התסמן: צד ימין חתוך בגרסה הארוזה).
+
+    זה בא כביטוי נוסף למניפסט השיש ב-Askateroov.spec (dpiAwareness) —
+    אם המניפסט כבר הגדיר את זה, הקריאה כאן תיכשל בשקט ולא מזיקה.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        # PROCESS_PER_MONITOR_DPI_AWARE = 2
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+
+
 def main() -> int:
+    _set_windows_dpi_awareness()   # לפני יצירת QApplication/כל חלון
+
     from PySide6.QtWidgets import QApplication
 
     from .core.logs import log

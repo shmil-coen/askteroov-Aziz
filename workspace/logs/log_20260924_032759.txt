@@ -1,0 +1,80 @@
+2026-09-24 03:27:59,491 [INFO] הפעלת הסקטארוב (מרכז שליטה)
+2026-09-24 03:28:42,717 [INFO] ▶ התחלה: בדיקת מצב אבטחה / בוטלאודר (1 שלבים)
+2026-09-24 03:28:42,726 [INFO] רץ: mtk gettargetconfig
+2026-09-24 03:28:43,581 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 03:28:43,581 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-24 03:28:45,091 [DEBUG] Port - Hint:
+2026-09-24 03:28:45,091 [DEBUG] Power off the phone before connecting.
+2026-09-24 03:28:45,091 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 03:28:45,091 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 03:28:45,091 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 03:29:21,481 [DEBUG] ......Port - Device detected :)
+2026-09-24 03:29:21,490 [DEBUG] Preloader - 	CPU:			MT6580()
+2026-09-24 03:29:21,491 [DEBUG] Preloader - 	HW version:		0x0
+2026-09-24 03:29:21,492 [DEBUG] Preloader - 	WDT:			0x10007000
+2026-09-24 03:29:21,493 [DEBUG] Preloader - 	Uart:			0x11005000
+2026-09-24 03:29:21,494 [DEBUG] Preloader - 	Brom payload addr:	0x100a00
+2026-09-24 03:29:21,496 [DEBUG] Preloader - 	DA payload addr:	0x201000
+2026-09-24 03:29:21,497 [DEBUG] Preloader - 	CQ_DMA addr:		0x1020ac00
+2026-09-24 03:29:21,499 [DEBUG] Preloader - 	Var1:			0xac
+2026-09-24 03:29:21,499 [DEBUG] Preloader - Disabling Watchdog...
+2026-09-24 03:29:21,504 [DEBUG] Preloader - HW code:			0x6580
+2026-09-24 03:29:21,505 [DEBUG] Preloader - Target config:		0x0
+2026-09-24 03:29:21,507 [DEBUG] Preloader - 	SBC enabled:		False
+2026-09-24 03:29:21,509 [DEBUG] Preloader - 	SLA enabled:		False
+2026-09-24 03:29:21,511 [DEBUG] Preloader - 	DAA enabled:		False
+2026-09-24 03:29:21,513 [DEBUG] Preloader - 	SWJTAG enabled:		False
+2026-09-24 03:29:21,514 [DEBUG] Preloader - 	EPP_PARAM at 0x600 after EMMC_BOOT/SDMMC_BOOT:	False
+2026-09-24 03:29:21,514 [DEBUG] Preloader - 	Root cert required:	False
+2026-09-24 03:29:21,524 [DEBUG] Preloader - 	Mem read auth:		False
+2026-09-24 03:29:21,530 [DEBUG] Preloader - 	Mem write auth:		False
+2026-09-24 03:29:21,532 [DEBUG] Preloader - 	Cmd 0xC8 blocked:	False
+2026-09-24 03:29:21,536 [DEBUG] Preloader - Get Target info
+2026-09-24 03:29:21,561 [DEBUG] Preloader - 	HW subcode:		0x8a00
+2026-09-24 03:29:21,561 [DEBUG] Preloader - 	HW Ver:			0xca00
+2026-09-24 03:29:21,563 [DEBUG] Preloader - 	SW Ver:			0x0
+2026-09-24 03:29:21,564 [DEBUG] Main - Getting target info...
+2026-09-24 03:29:21,565 [DEBUG] Preloader - Target config:		0x0
+2026-09-24 03:29:21,568 [DEBUG] Preloader - 	SBC enabled:		False
+2026-09-24 03:29:21,570 [DEBUG] Preloader - 	SLA enabled:		False
+2026-09-24 03:29:21,571 [DEBUG] Preloader - 	DAA enabled:		False
+2026-09-24 03:29:21,575 [DEBUG] Preloader - 	SWJTAG enabled:		False
+2026-09-24 03:29:21,576 [DEBUG] Preloader - 	EPP_PARAM at 0x600 after EMMC_BOOT/SDMMC_BOOT:	False
+2026-09-24 03:29:21,577 [DEBUG] Preloader - 	Root cert required:	False
+2026-09-24 03:29:21,578 [DEBUG] Preloader - 	Mem read auth:		False
+2026-09-24 03:29:21,580 [DEBUG] Preloader - 	Mem write auth:		False
+2026-09-24 03:29:21,581 [DEBUG] Preloader - 	Cmd 0xC8 blocked:	False
+2026-09-24 03:29:21,746 [INFO] mtk הסתיים עם קוד 0
+2026-09-24 03:29:21,754 [INFO] ■ בדיקת מצב אבטחה / בוטלאודר: הסתיים
+2026-09-24 03:29:21,772 [INFO] מצב אבטחה נקרא
+2026-09-24 03:29:21,774 [INFO] 🔓 Secure Boot (SBC): כבוי
+2026-09-24 03:29:21,779 [INFO] 🔓 Serial Link Auth (SLA): כבוי
+2026-09-24 03:29:21,782 [INFO] 🔓 Download Agent Auth (DAA): כבוי
+2026-09-24 03:29:21,782 [INFO] → Secure Boot כבוי: לרוב ניתן לצרוב בחופשיות.
+2026-09-24 03:29:21,786 [INFO] הערה: מצב נעילה מדויק (locked/unlocked) שמור ב-seccfg.
+2026-09-24 03:29:52,297 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-24 03:29:52,336 [INFO] רץ: mtk printgpt --noreconnect
+2026-09-24 03:29:53,442 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 03:29:53,443 [DEBUG] DaHandler - Please disconnect, start mtkclient and reconnect.
+2026-09-24 03:29:53,518 [INFO] mtk הסתיים עם קוד 0
+2026-09-24 03:29:53,519 [INFO] ■ קריאת GPT: הסתיים
+2026-09-24 03:29:53,520 [WARNING] לא נמצאו מחיצות בפלט GPT
+2026-09-24 03:30:09,746 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-24 03:30:09,783 [INFO] רץ: mtk printgpt --noreconnect
+2026-09-24 03:30:10,742 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 03:30:10,743 [DEBUG] DaHandler - Please disconnect, start mtkclient and reconnect.
+2026-09-24 03:30:10,865 [INFO] mtk הסתיים עם קוד 0
+2026-09-24 03:30:10,866 [INFO] ■ קריאת GPT: הסתיים
+2026-09-24 03:30:10,871 [WARNING] לא נמצאו מחיצות בפלט GPT
+2026-09-24 03:30:37,827 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-24 03:30:37,866 [INFO] רץ: mtk printgpt --noreconnect
+2026-09-24 03:30:38,802 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 03:30:38,804 [DEBUG] DaHandler - Please disconnect, start mtkclient and reconnect.
+2026-09-24 03:30:38,873 [INFO] mtk הסתיים עם קוד 0
+2026-09-24 03:30:38,874 [INFO] ■ קריאת GPT: הסתיים
+2026-09-24 03:30:38,876 [WARNING] לא נמצאו מחיצות בפלט GPT
+
+============================================================
+סיכום הפעלה — 2026-09-24T03:40:21.200586
+החלון נסגר על ידי המשתמש.
+2026-09-24 03:40:21,205 [INFO] הלוג נשמר: C:\Users\karnaf\Desktop\askateroov\workspace\logs\log_20260924_032759.txt

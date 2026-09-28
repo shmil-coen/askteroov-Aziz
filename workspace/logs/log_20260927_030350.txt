@@ -1,0 +1,370 @@
+2026-09-27 03:03:50,429 [INFO] הפעלת הסקטארוב (מרכז שליטה)
+2026-09-27 03:03:51,436 [INFO] אין מכשיר מחובר (בדיקת ADB/BROM)
+2026-09-27 03:04:10,458 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:04:10,458 [INFO] רץ: mtk printgpt
+2026-09-27 03:04:11,300 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:04:11,300 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:04:12,806 [DEBUG] Port - Hint:
+2026-09-27 03:04:12,806 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:12,806 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:12,806 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:12,806 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:14,969 [DEBUG] Preloader
+2026-09-27 03:04:14,969 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:16,829 [DEBUG] Preloader
+2026-09-27 03:04:16,829 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:21,193 [DEBUG] Preloader
+2026-09-27 03:04:21,200 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:23,078 [DEBUG] Preloader
+2026-09-27 03:04:23,078 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:24,942 [DEBUG] Preloader
+2026-09-27 03:04:24,942 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:26,452 [DEBUG] Port - Hint:
+2026-09-27 03:04:26,452 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:26,452 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:26,452 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:26,452 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:31,270 [DEBUG] ...........
+2026-09-27 03:04:32,480 [DEBUG] Port - Hint:
+2026-09-27 03:04:32,480 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:32,483 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:32,483 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:32,488 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:37,298 [DEBUG] ...........
+2026-09-27 03:04:38,503 [DEBUG] Port - Hint:
+2026-09-27 03:04:38,503 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:38,503 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:38,503 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:38,503 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:43,319 [DEBUG] ...........
+2026-09-27 03:04:44,523 [DEBUG] Port - Hint:
+2026-09-27 03:04:44,523 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:44,523 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:44,523 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:44,523 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:49,341 [DEBUG] ...........
+2026-09-27 03:04:50,545 [DEBUG] Port - Hint:
+2026-09-27 03:04:50,545 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:50,545 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:50,545 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:50,545 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:04:55,064 [DEBUG] ..........Preloader
+2026-09-27 03:04:55,064 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:04:56,570 [DEBUG] Port - Hint:
+2026-09-27 03:04:56,570 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:04:56,570 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:04:56,570 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:04:56,570 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:01,387 [DEBUG] ...........
+2026-09-27 03:05:02,592 [DEBUG] Port - Hint:
+2026-09-27 03:05:02,592 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:02,592 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:02,592 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:02,592 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:07,410 [DEBUG] ...........
+2026-09-27 03:05:08,615 [DEBUG] Port - Hint:
+2026-09-27 03:05:08,615 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:08,615 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:08,615 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:08,615 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:13,438 [DEBUG] ...........
+2026-09-27 03:05:14,642 [DEBUG] Port - Hint:
+2026-09-27 03:05:14,642 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:14,642 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:14,642 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:14,642 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:19,462 [DEBUG] ...........
+2026-09-27 03:05:20,666 [DEBUG] Port - Hint:
+2026-09-27 03:05:20,666 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:20,666 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:20,671 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:20,671 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:25,183 [DEBUG] ..........Preloader
+2026-09-27 03:05:25,184 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:05:26,689 [DEBUG] Port - Hint:
+2026-09-27 03:05:26,689 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:26,692 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:26,692 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:26,695 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:31,507 [DEBUG] ...........
+2026-09-27 03:05:32,715 [DEBUG] Port - Hint:
+2026-09-27 03:05:32,715 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:32,717 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:32,717 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:32,717 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:37,531 [DEBUG] ...........
+2026-09-27 03:05:38,737 [DEBUG] Port - Hint:
+2026-09-27 03:05:38,737 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:38,737 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:38,737 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:38,737 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:43,633 [DEBUG] ...........
+2026-09-27 03:05:44,845 [DEBUG] Port - Hint:
+2026-09-27 03:05:44,845 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:44,845 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:44,857 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:44,857 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:49,672 [DEBUG] ...........
+2026-09-27 03:05:50,878 [DEBUG] Port - Hint:
+2026-09-27 03:05:50,878 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:50,878 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:50,878 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:50,878 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:05:55,396 [DEBUG] ..........Preloader
+2026-09-27 03:05:55,396 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:05:56,902 [DEBUG] Port - Hint:
+2026-09-27 03:05:56,902 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:05:56,902 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:05:56,902 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:05:56,902 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:01,720 [DEBUG] ...........
+2026-09-27 03:06:02,925 [DEBUG] Port - Hint:
+2026-09-27 03:06:02,925 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:02,925 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:02,925 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:02,925 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:07,742 [DEBUG] ...........
+2026-09-27 03:06:08,947 [DEBUG] Port - Hint:
+2026-09-27 03:06:08,947 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:08,947 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:08,947 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:08,947 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:13,769 [DEBUG] ...........
+2026-09-27 03:06:14,974 [DEBUG] Port - Hint:
+2026-09-27 03:06:14,974 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:14,974 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:14,974 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:14,974 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:15,893 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:06:15,924 [WARNING] הפקודה הופסקה על ידי המשתמש
+2026-09-27 03:06:15,924 [ERROR] ■ קריאת GPT: מבוטל
+2026-09-27 03:06:17,780 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:06:17,780 [INFO] רץ: mtk printgpt
+2026-09-27 03:06:18,666 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:06:18,666 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:06:20,189 [DEBUG] Port - Hint:
+2026-09-27 03:06:20,190 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:20,193 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:20,193 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:20,193 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:25,007 [DEBUG] ...........
+2026-09-27 03:06:26,212 [DEBUG] Port - Hint:
+2026-09-27 03:06:26,212 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:26,212 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:26,212 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:26,212 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:31,029 [DEBUG] ...........
+2026-09-27 03:06:32,234 [DEBUG] Port - Hint:
+2026-09-27 03:06:32,234 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:32,238 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:32,238 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:32,238 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:37,052 [DEBUG] ...........
+2026-09-27 03:06:38,257 [DEBUG] Port - Hint:
+2026-09-27 03:06:38,257 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:38,257 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:38,257 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:38,257 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:43,076 [DEBUG] ...........
+2026-09-27 03:06:44,283 [DEBUG] Port - Hint:
+2026-09-27 03:06:44,283 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:44,283 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:44,283 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:44,289 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:48,805 [DEBUG] ..........Preloader
+2026-09-27 03:06:48,805 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:06:50,311 [DEBUG] Port - Hint:
+2026-09-27 03:06:50,311 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:50,311 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:50,311 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:50,311 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:06:55,132 [DEBUG] ...........
+2026-09-27 03:06:56,337 [DEBUG] Port - Hint:
+2026-09-27 03:06:56,337 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:06:56,337 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:06:56,353 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:06:56,353 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:01,156 [DEBUG] ...........
+2026-09-27 03:07:02,363 [DEBUG] Port - Hint:
+2026-09-27 03:07:02,363 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:02,363 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:02,363 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:02,363 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:07,220 [DEBUG] ...........
+2026-09-27 03:07:08,428 [DEBUG] Port - Hint:
+2026-09-27 03:07:08,428 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:08,428 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:08,428 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:08,428 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:13,249 [DEBUG] ...........
+2026-09-27 03:07:14,454 [DEBUG] Port - Hint:
+2026-09-27 03:07:14,454 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:14,457 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:14,460 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:14,462 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:18,970 [DEBUG] ..........Preloader
+2026-09-27 03:07:18,970 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:07:20,475 [DEBUG] Port - Hint:
+2026-09-27 03:07:20,475 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:20,475 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:20,475 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:20,475 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:25,291 [DEBUG] ...........
+2026-09-27 03:07:26,496 [DEBUG] Port - Hint:
+2026-09-27 03:07:26,496 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:26,496 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:26,496 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:26,496 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:31,314 [DEBUG] ...........
+2026-09-27 03:07:32,518 [DEBUG] Port - Hint:
+2026-09-27 03:07:32,518 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:32,518 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:32,518 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:32,518 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:37,337 [DEBUG] ...........
+2026-09-27 03:07:38,545 [DEBUG] Port - Hint:
+2026-09-27 03:07:38,546 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:38,548 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:38,550 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:38,552 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:43,363 [DEBUG] ...........
+2026-09-27 03:07:44,567 [DEBUG] Port - Hint:
+2026-09-27 03:07:44,567 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:44,567 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:44,567 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:44,567 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:49,082 [DEBUG] ..........Preloader
+2026-09-27 03:07:49,082 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-27 03:07:50,590 [DEBUG] Port - Hint:
+2026-09-27 03:07:50,590 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:50,590 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:50,590 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:50,590 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:07:55,406 [DEBUG] ...........
+2026-09-27 03:07:56,610 [DEBUG] Port - Hint:
+2026-09-27 03:07:56,610 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:07:56,610 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:07:56,610 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:07:56,610 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:08:01,426 [DEBUG] ...........
+2026-09-27 03:08:02,630 [DEBUG] Port - Hint:
+2026-09-27 03:08:02,630 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:08:02,630 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:08:02,630 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:08:02,630 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:08:06,559 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:08:06,590 [WARNING] הפקודה הופסקה על ידי המשתמש
+2026-09-27 03:08:06,590 [ERROR] ■ קריאת GPT: מבוטל
+2026-09-27 03:08:12,471 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:08:12,471 [INFO] רץ: mtk printgpt
+2026-09-27 03:08:13,346 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:08:13,346 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:08:14,867 [DEBUG] Port - Hint:
+2026-09-27 03:08:14,867 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:08:14,867 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:08:14,867 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:08:14,867 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:08:19,684 [DEBUG] ...........
+2026-09-27 03:10:11,727 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:10:17,524 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:10:20,596 [WARNING] הפקודה הופסקה על ידי המשתמש
+2026-09-27 03:10:20,596 [ERROR] ■ קריאת GPT: מבוטל
+2026-09-27 03:10:25,748 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:10:25,748 [INFO] רץ: mtk printgpt
+2026-09-27 03:10:26,577 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:10:26,577 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:10:28,087 [DEBUG] Port - Hint:
+2026-09-27 03:10:28,087 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:10:28,087 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:10:28,087 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:10:28,087 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:11:00,998 [DEBUG] .........Port - Device detected :)
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	CPU:			MT6580()
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	HW version:		0x0
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	WDT:			0x10007000
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	Uart:			0x11005000
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	Brom payload addr:	0x100a00
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	DA payload addr:	0x201000
+2026-09-27 03:11:00,998 [DEBUG] Preloader - 	CQ_DMA addr:		0x1020ac00
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	Var1:			0xac
+2026-09-27 03:11:01,014 [DEBUG] Preloader - Disabling Watchdog...
+2026-09-27 03:11:01,014 [DEBUG] Preloader - HW code:			0x6580
+2026-09-27 03:11:01,014 [DEBUG] Preloader - Target config:		0x0
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	SBC enabled:		False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	SLA enabled:		False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	DAA enabled:		False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	SWJTAG enabled:		False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	EPP_PARAM at 0x600 after EMMC_BOOT/SDMMC_BOOT:	False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	Root cert required:	False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	Mem read auth:		False
+2026-09-27 03:11:01,014 [DEBUG] Preloader - 	Mem write auth:		False
+2026-09-27 03:11:01,029 [DEBUG] Preloader - 	Cmd 0xC8 blocked:	False
+2026-09-27 03:11:01,029 [DEBUG] Preloader - Get Target info
+2026-09-27 03:11:01,064 [DEBUG] Preloader - 	HW subcode:		0x8a00
+2026-09-27 03:11:01,064 [DEBUG] Preloader - 	HW Ver:			0xca00
+2026-09-27 03:11:01,064 [DEBUG] Preloader - 	SW Ver:			0x0
+2026-09-27 03:11:01,064 [DEBUG] DaHandler - Device is unprotected.
+2026-09-27 03:11:01,064 [DEBUG] DaHandler - Device is in Preloader-Mode.
+2026-09-27 03:11:01,064 [DEBUG] DALegacy - Uploading legacy da...
+2026-09-27 03:11:01,064 [DEBUG] DALegacy - Uploading legacy stage 1 from MTK_DA_V5.bin
+2026-09-27 03:11:01,064 [DEBUG] LegacyExt - Legacy DA2 is patched.
+2026-09-27 03:11:01,064 [DEBUG] LegacyExt - Legacy DA2 CMD F0 is patched.
+2026-09-27 03:11:01,265 [DEBUG] Preloader - Jumping to 0x200000
+2026-09-27 03:11:01,265 [DEBUG] Preloader - Jumping to 0x200000: ok.
+2026-09-27 03:11:01,265 [DEBUG] DALegacy - Got loader sync !
+2026-09-27 03:11:01,265 [DEBUG] DALegacy - Reading nand info
+2026-09-27 03:11:01,312 [DEBUG] DALegacy - Reading emmc info
+2026-09-27 03:11:01,312 [DEBUG] DALegacy - ACK: 04029c
+2026-09-27 03:11:01,312 [DEBUG] DALegacy - Setting stage 2 config ...
+2026-09-27 03:11:01,672 [DEBUG] DeviceClass - USBError(5, 'Input/Output Error')
+2026-09-27 03:11:01,672 [DEBUG] DALegacy
+2026-09-27 03:11:01,672 [DEBUG] DALegacy - [LIB]: [31mDidn't receive Stage2 dram info, please check usb cable/hub and retry.[0m
+2026-09-27 03:11:01,757 [INFO] mtk הסתיים עם קוד 0
+2026-09-27 03:11:01,757 [INFO] ■ קריאת GPT: הסתיים
+2026-09-27 03:11:01,762 [WARNING] לא נמצאו מחיצות בפלט GPT
+2026-09-27 03:11:01,769 [INFO] job_done (thread ראשי): קריאת GPT — לפני דיאלוג הצלחה
+2026-09-27 03:11:05,154 [INFO] job_done: קריאת GPT — אחרי דיאלוג הצלחה
+2026-09-27 03:11:34,303 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:11:34,350 [INFO] רץ: mtk printgpt
+2026-09-27 03:11:35,216 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:11:35,217 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:11:36,723 [DEBUG] Port - Hint:
+2026-09-27 03:11:36,723 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:11:36,725 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:11:36,728 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:11:36,729 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:11:41,540 [DEBUG] ...........
+2026-09-27 03:11:42,745 [DEBUG] Port - Hint:
+2026-09-27 03:11:42,745 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:11:42,745 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:11:42,745 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:11:42,745 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:11:47,562 [DEBUG] ...........
+2026-09-27 03:11:48,768 [DEBUG] Port - Hint:
+2026-09-27 03:11:48,768 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:11:48,770 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:11:48,772 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:11:48,774 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:12:59,213 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:13:09,870 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:13:50,275 [WARNING] הפקודה הופסקה על ידי המשתמש
+2026-09-27 03:13:50,275 [ERROR] ■ קריאת GPT: מבוטל
+2026-09-27 03:14:16,565 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-27 03:14:16,565 [INFO] רץ: mtk printgpt
+2026-09-27 03:14:17,453 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-27 03:14:17,454 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-27 03:14:18,962 [DEBUG] Port - Hint:
+2026-09-27 03:14:18,962 [DEBUG] Power off the phone before connecting.
+2026-09-27 03:14:18,962 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-27 03:14:18,962 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-27 03:14:18,962 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-27 03:14:23,781 [DEBUG] ...........
+2026-09-27 03:15:34,276 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:15:39,891 [WARNING] מבטל: קריאת GPT
+2026-09-27 03:16:24,408 [WARNING] הפקודה הופסקה על ידי המשתמש
+2026-09-27 03:16:24,408 [ERROR] ■ קריאת GPT: מבוטל
+
+============================================================
+סיכום הפעלה — 2026-09-27T03:23:30.480745
+החלון נסגר על ידי המשתמש.
+2026-09-27 03:23:30,480 [INFO] הלוג נשמר: C:\Users\karnaf\Desktop\askateroov\workspace\logs\log_20260927_030350.txt

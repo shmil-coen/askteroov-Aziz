@@ -1,0 +1,24 @@
+{
+  "MT6580/Android_scatter_MT6580.txt": {
+    "source": "generated",
+    "note": "נוצר עבור MT6580 מתוך GPT שנקרא 23/09",
+    "added": "2026-09-23T22:11:57"
+  },
+  "MT6580/Android_scatter_MT6580_1.txt": {
+    "source": "generated",
+    "note": "נוצר עבור MT6580",
+    "added": "2026-09-24T02:15:30"
+  },
+  "MT6580/Android_scatter_MT6580_2.txt": {
+    "source": "generated",
+    "note": "נוצר עבור MT6580",
+    "added": "2026-09-25T13:56:19"
+  },
+  "נגן_אח_לסרי/Android_scatter_MT6580_3.txt": {
+    "source": "generated",
+    "note": "נוצר עבור MT6580",
+    "device": "",
+    "cpu": "MT6580",
+    "added": "2026-09-27T22:46:29"
+  }
+}

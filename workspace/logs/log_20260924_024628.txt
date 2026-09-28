@@ -1,0 +1,373 @@
+2026-09-24 02:46:29,130 [INFO] הפעלת הסקטארוב (מרכז שליטה)
+2026-09-24 02:47:38,435 [INFO] ▶ התחלה: קריאת GPT (1 שלבים)
+2026-09-24 02:47:38,445 [INFO] רץ: mtk printgpt --noreconnect
+2026-09-24 02:47:40,428 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 02:47:40,429 [DEBUG] Preloader - Status: Waiting for PreLoader VCOM, please reconnect mobile to brom mode
+2026-09-24 02:47:41,946 [DEBUG] Port - Hint:
+2026-09-24 02:47:41,947 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:47:41,949 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:47:41,956 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:47:41,957 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:47:46,802 [DEBUG] ...........
+2026-09-24 02:47:48,019 [DEBUG] Port - Hint:
+2026-09-24 02:47:48,020 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:47:48,023 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:47:48,026 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:47:48,028 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:47:52,881 [DEBUG] ...........
+2026-09-24 02:47:54,100 [DEBUG] Port - Hint:
+2026-09-24 02:47:54,101 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:47:54,103 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:47:54,107 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:47:54,112 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:47:58,946 [DEBUG] ...........
+2026-09-24 02:48:00,168 [DEBUG] Port - Hint:
+2026-09-24 02:48:00,168 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:00,170 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:00,171 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:00,172 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:05,010 [DEBUG] ...........
+2026-09-24 02:48:06,226 [DEBUG] Port - Hint:
+2026-09-24 02:48:06,227 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:06,234 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:06,237 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:06,239 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:10,768 [DEBUG] ..........Preloader
+2026-09-24 02:48:10,770 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:48:12,286 [DEBUG] Port - Hint:
+2026-09-24 02:48:12,287 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:12,290 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:12,293 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:12,294 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:17,129 [DEBUG] ...........
+2026-09-24 02:48:18,342 [DEBUG] Port - Hint:
+2026-09-24 02:48:18,343 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:18,349 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:18,359 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:18,366 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:23,197 [DEBUG] ...........
+2026-09-24 02:48:24,411 [DEBUG] Port - Hint:
+2026-09-24 02:48:24,412 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:24,433 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:24,434 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:24,436 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:29,250 [DEBUG] ...........
+2026-09-24 02:48:30,468 [DEBUG] Port - Hint:
+2026-09-24 02:48:30,469 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:30,476 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:30,481 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:30,484 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:35,315 [DEBUG] ...........
+2026-09-24 02:48:36,532 [DEBUG] Port - Hint:
+2026-09-24 02:48:36,533 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:36,538 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:36,548 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:36,549 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:41,094 [DEBUG] ..........Preloader
+2026-09-24 02:48:41,095 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:48:42,606 [DEBUG] Port - Hint:
+2026-09-24 02:48:42,607 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:42,613 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:42,615 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:42,617 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:47,471 [DEBUG] ...........
+2026-09-24 02:48:48,686 [DEBUG] Port - Hint:
+2026-09-24 02:48:48,688 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:48,694 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:48,700 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:48,703 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:53,539 [DEBUG] ...........
+2026-09-24 02:48:54,764 [DEBUG] Port - Hint:
+2026-09-24 02:48:54,766 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:48:54,774 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:48:54,780 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:48:54,781 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:48:59,627 [DEBUG] ...........
+2026-09-24 02:49:00,836 [DEBUG] Port - Hint:
+2026-09-24 02:49:00,838 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:00,846 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:00,849 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:00,851 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:05,685 [DEBUG] ...........
+2026-09-24 02:49:06,919 [DEBUG] Port - Hint:
+2026-09-24 02:49:06,920 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:06,927 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:06,931 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:06,934 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:11,468 [DEBUG] ..........Preloader
+2026-09-24 02:49:11,469 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:49:12,982 [DEBUG] Port - Hint:
+2026-09-24 02:49:12,984 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:13,003 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:13,005 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:13,012 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:17,826 [DEBUG] ...........
+2026-09-24 02:49:19,041 [DEBUG] Port - Hint:
+2026-09-24 02:49:19,042 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:19,053 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:19,060 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:19,066 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:23,878 [DEBUG] ...........
+2026-09-24 02:49:25,108 [DEBUG] Port - Hint:
+2026-09-24 02:49:25,109 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:25,113 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:25,120 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:25,122 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:29,959 [DEBUG] ...........
+2026-09-24 02:49:31,174 [DEBUG] Port - Hint:
+2026-09-24 02:49:31,175 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:31,181 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:31,188 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:31,189 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:36,027 [DEBUG] ...........
+2026-09-24 02:49:37,237 [DEBUG] Port - Hint:
+2026-09-24 02:49:37,241 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:37,247 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:37,249 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:37,252 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:41,777 [DEBUG] ..........Preloader
+2026-09-24 02:49:41,778 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:49:43,295 [DEBUG] Port - Hint:
+2026-09-24 02:49:43,297 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:43,305 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:43,308 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:43,314 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:48,134 [DEBUG] ...........
+2026-09-24 02:49:49,365 [DEBUG] Port - Hint:
+2026-09-24 02:49:49,367 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:49,372 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:49,381 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:49,385 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:49:54,215 [DEBUG] ...........
+2026-09-24 02:49:55,429 [DEBUG] Port - Hint:
+2026-09-24 02:49:55,432 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:49:55,438 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:49:55,443 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:49:55,447 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:00,279 [DEBUG] ...........
+2026-09-24 02:50:01,498 [DEBUG] Port - Hint:
+2026-09-24 02:50:01,500 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:01,504 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:01,506 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:01,507 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:06,346 [DEBUG] ...........
+2026-09-24 02:50:07,561 [DEBUG] Port - Hint:
+2026-09-24 02:50:07,562 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:07,567 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:07,576 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:07,582 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:12,109 [DEBUG] ..........Preloader
+2026-09-24 02:50:12,110 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:50:13,625 [DEBUG] Port - Hint:
+2026-09-24 02:50:13,627 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:13,631 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:13,635 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:13,642 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:18,469 [DEBUG] ...........
+2026-09-24 02:50:19,688 [DEBUG] Port - Hint:
+2026-09-24 02:50:19,688 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:19,699 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:19,701 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:19,703 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:24,538 [DEBUG] ...........
+2026-09-24 02:50:25,755 [DEBUG] Port - Hint:
+2026-09-24 02:50:25,756 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:25,767 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:25,769 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:25,771 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:30,600 [DEBUG] ...........
+2026-09-24 02:50:31,815 [DEBUG] Port - Hint:
+2026-09-24 02:50:31,815 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:31,819 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:31,820 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:31,822 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:36,672 [DEBUG] ...........
+2026-09-24 02:50:37,889 [DEBUG] Port - Hint:
+2026-09-24 02:50:37,890 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:37,903 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:37,906 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:37,908 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:42,428 [DEBUG] ..........Preloader
+2026-09-24 02:50:42,430 [DEBUG] Preloader - [LIB]: [31mStatus: Handshake failed, retrying...[0m
+2026-09-24 02:50:43,941 [DEBUG] Port - Hint:
+2026-09-24 02:50:43,942 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:43,947 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:43,948 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:43,952 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:48,781 [DEBUG] ...........
+2026-09-24 02:50:49,997 [DEBUG] Port - Hint:
+2026-09-24 02:50:49,998 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:50,003 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:50,011 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:50,013 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:50:54,854 [DEBUG] ...........
+2026-09-24 02:50:56,077 [DEBUG] Port - Hint:
+2026-09-24 02:50:56,079 [DEBUG] Power off the phone before connecting.
+2026-09-24 02:50:56,085 [DEBUG] For brom mode, press and hold vol up, vol dwn, or all hw buttons and connect usb.
+2026-09-24 02:50:56,094 [DEBUG] For preloader mode, don't press any hw button and connect usb.
+2026-09-24 02:50:56,097 [DEBUG] If it is already connected and on, hold power for 10 seconds to reset.
+2026-09-24 02:51:05,671 [DEBUG] Port - Device detected :)
+2026-09-24 02:51:05,680 [DEBUG] Preloader - 	CPU:			MT6580()
+2026-09-24 02:51:05,688 [DEBUG] Preloader - 	HW version:		0x0
+2026-09-24 02:51:05,692 [DEBUG] Preloader - 	WDT:			0x10007000
+2026-09-24 02:51:05,698 [DEBUG] Preloader - 	Uart:			0x11005000
+2026-09-24 02:51:05,701 [DEBUG] Preloader - 	Brom payload addr:	0x100a00
+2026-09-24 02:51:05,707 [DEBUG] Preloader - 	DA payload addr:	0x201000
+2026-09-24 02:51:05,710 [DEBUG] Preloader - 	CQ_DMA addr:		0x1020ac00
+2026-09-24 02:51:05,717 [DEBUG] Preloader - 	Var1:			0xac
+2026-09-24 02:51:05,721 [DEBUG] Preloader - Disabling Watchdog...
+2026-09-24 02:51:05,722 [DEBUG] Preloader - HW code:			0x6580
+2026-09-24 02:51:05,723 [DEBUG] Preloader - Target config:		0x0
+2026-09-24 02:51:05,724 [DEBUG] Preloader - 	SBC enabled:		False
+2026-09-24 02:51:05,731 [DEBUG] Preloader - 	SLA enabled:		False
+2026-09-24 02:51:05,738 [DEBUG] Preloader - 	DAA enabled:		False
+2026-09-24 02:51:05,741 [DEBUG] Preloader - 	SWJTAG enabled:		False
+2026-09-24 02:51:05,749 [DEBUG] Preloader - 	EPP_PARAM at 0x600 after EMMC_BOOT/SDMMC_BOOT:	False
+2026-09-24 02:51:05,755 [DEBUG] Preloader - 	Root cert required:	False
+2026-09-24 02:51:05,760 [DEBUG] Preloader - 	Mem read auth:		False
+2026-09-24 02:51:05,765 [DEBUG] Preloader - 	Mem write auth:		False
+2026-09-24 02:51:05,769 [DEBUG] Preloader - 	Cmd 0xC8 blocked:	False
+2026-09-24 02:51:05,772 [DEBUG] Preloader - Get Target info
+2026-09-24 02:51:05,773 [DEBUG] Preloader - 	HW subcode:		0x8a00
+2026-09-24 02:51:05,774 [DEBUG] Preloader - 	HW Ver:			0xca00
+2026-09-24 02:51:05,775 [DEBUG] Preloader - 	SW Ver:			0x0
+2026-09-24 02:51:05,781 [DEBUG] DaHandler - Device is unprotected.
+2026-09-24 02:51:05,782 [DEBUG] DaHandler - Device is in Preloader-Mode.
+2026-09-24 02:51:05,787 [DEBUG] DALegacy - Uploading legacy da...
+2026-09-24 02:51:05,788 [DEBUG] DALegacy - Uploading legacy stage 1 from MTK_DA_V5.bin
+2026-09-24 02:51:05,792 [DEBUG] LegacyExt - Legacy DA2 is patched.
+2026-09-24 02:51:05,793 [DEBUG] LegacyExt - Legacy DA2 CMD F0 is patched.
+2026-09-24 02:51:06,096 [DEBUG] Preloader - Jumping to 0x200000
+2026-09-24 02:51:06,101 [DEBUG] Preloader - Jumping to 0x200000: ok.
+2026-09-24 02:51:06,105 [DEBUG] DALegacy - Got loader sync !
+2026-09-24 02:51:06,105 [DEBUG] DALegacy - Reading nand info
+2026-09-24 02:51:06,157 [DEBUG] DALegacy - Reading emmc info
+2026-09-24 02:51:06,166 [DEBUG] DALegacy - ACK: 04029c
+2026-09-24 02:51:06,171 [DEBUG] DALegacy - Setting stage 2 config ...
+2026-09-24 02:51:06,525 [DEBUG] DALegacy - Uploading stage 2...
+2026-09-24 02:51:07,159 [DEBUG] DALegacy - Successfully uploaded stage 2
+2026-09-24 02:51:07,448 [DEBUG] DALegacy - Connected to stage2
+2026-09-24 02:51:07,457 [DEBUG] DALegacy - m_int_sram_ret = 0x0
+2026-09-24 02:51:07,459 [DEBUG] m_int_sram_size = 0x20000
+2026-09-24 02:51:07,467 [DEBUG] m_ext_ram_ret = 0x0
+2026-09-24 02:51:07,469 [DEBUG] m_ext_ram_type = 0x2
+2026-09-24 02:51:07,475 [DEBUG] m_ext_ram_chip_select = 0x0
+2026-09-24 02:51:07,483 [DEBUG] m_int_sram_ret = 0x0
+2026-09-24 02:51:07,484 [DEBUG] m_ext_ram_size = 0x80000000
+2026-09-24 02:51:07,487 [DEBUG] randomid = 0xC3ECA37D54EE00432D8C3ACAC2F189B9
+2026-09-24 02:51:07,765 [DEBUG] m_emmc_ret = 0x0
+2026-09-24 02:51:07,769 [DEBUG] m_emmc_boot1_size = 0x400000
+2026-09-24 02:51:07,774 [DEBUG] m_emmc_boot2_size = 0x400000
+2026-09-24 02:51:07,776 [DEBUG] m_emmc_rpmb_size = 0x400000
+2026-09-24 02:51:07,785 [DEBUG] m_emmc_gp_size[0] = 0x0
+2026-09-24 02:51:07,788 [DEBUG] m_emmc_gp_size[1] = 0x0
+2026-09-24 02:51:07,789 [DEBUG] m_emmc_gp_size[2] = 0x0
+2026-09-24 02:51:07,790 [DEBUG] m_emmc_gp_size[3] = 0x0
+2026-09-24 02:51:07,792 [DEBUG] m_emmc_ua_size = 0x3ab400000
+2026-09-24 02:51:07,793 [DEBUG] m_emmc_cid = 4634303145010044943ab35736013d23
+2026-09-24 02:51:07,794 [DEBUG] m_emmc_fwver = 0100000000000000
+2026-09-24 02:51:07,798 [DEBUG] GPT Table:
+2026-09-24 02:51:07,806 [DEBUG] -------------
+2026-09-24 02:51:07,817 [DEBUG] proinfo:             Offset 0x0000000000080000, Length 0x0000000000300000
+2026-09-24 02:51:07,821 [DEBUG]                      Flags 0x00000000, UUID f57ad330-39c2-4488-b09b-00cb43c9ccd4, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,831 [DEBUG] nvram:               Offset 0x0000000000380000, Length 0x0000000000500000
+2026-09-24 02:51:07,831 [DEBUG]                      Flags 0x00000000, UUID fe686d97-3544-4a41-21be-167e25b61b6f, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,835 [DEBUG] protect1:            Offset 0x0000000000880000, Length 0x0000000000a00000
+2026-09-24 02:51:07,837 [DEBUG]                      Flags 0x00000000, UUID 1cb143a8-b1a8-4b57-51b2-945c5119e8fe, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,840 [DEBUG] protect2:            Offset 0x0000000001280000, Length 0x0000000000a00000
+2026-09-24 02:51:07,847 [DEBUG]                      Flags 0x00000000, UUID 3b9e343b-cdc8-4d7f-a69f-b6812e50ab62, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,852 [DEBUG] seccfg:              Offset 0x0000000001c80000, Length 0x0000000000040000
+2026-09-24 02:51:07,853 [DEBUG]                      Flags 0x00000000, UUID 5f6a2c79-6617-4b85-02ac-c2975a14d2d7, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,854 [DEBUG] lk:                  Offset 0x0000000001cc0000, Length 0x0000000000080000
+2026-09-24 02:51:07,855 [DEBUG]                      Flags 0x00000000, UUID 4ae2050b-5db5-4ff7-d3aa-5730534be63d, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,858 [DEBUG] lk2:                 Offset 0x0000000001d40000, Length 0x0000000000080000
+2026-09-24 02:51:07,859 [DEBUG]                      Flags 0x00000000, UUID 1f9b0939-e16b-4bc9-bca5-dc2ee969d801, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,860 [DEBUG] boot:                Offset 0x0000000001dc0000, Length 0x0000000001000000
+2026-09-24 02:51:07,864 [DEBUG]                      Flags 0x00000000, UUID d722c721-0dee-4cb8-838a-2c63cd1393c7, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,865 [DEBUG] recovery:            Offset 0x0000000002dc0000, Length 0x0000000001000000
+2026-09-24 02:51:07,866 [DEBUG]                      Flags 0x00000000, UUID e02179a8-ceb5-48a9-3188-4f1c9c5a8695, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,867 [DEBUG] para:                Offset 0x0000000003dc0000, Length 0x0000000000080000
+2026-09-24 02:51:07,868 [DEBUG]                      Flags 0x00000000, UUID 84b09a81-fad2-41ac-0e89-407c24975e74, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,869 [DEBUG] logo:                Offset 0x0000000003e40000, Length 0x0000000000800000
+2026-09-24 02:51:07,870 [DEBUG]                      Flags 0x00000000, UUID e8f0a5ef-8d1b-42ea-2a9c-835cd77de363, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,871 [DEBUG] dtbo:                Offset 0x0000000004640000, Length 0x0000000000800000
+2026-09-24 02:51:07,872 [DEBUG]                      Flags 0x00000000, UUID d5f0e175-a6e1-4db7-c094-f82ad032950b, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,875 [DEBUG] vbmeta:              Offset 0x0000000004e40000, Length 0x0000000000800000
+2026-09-24 02:51:07,876 [DEBUG]                      Flags 0x00000000, UUID 1d9056e1-e139-4fca-0b8c-b75fd74d81c6, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,882 [DEBUG] vbmeta_system:       Offset 0x0000000005640000, Length 0x0000000000800000
+2026-09-24 02:51:07,883 [DEBUG]                      Flags 0x00000000, UUID 7792210b-b6a8-45d5-91ad-3361ed14c608, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,884 [DEBUG] vbmeta_vendor:       Offset 0x0000000005e40000, Length 0x0000000000800000
+2026-09-24 02:51:07,885 [DEBUG]                      Flags 0x00000000, UUID 138a6db9-1032-451d-e991-0fa38ff94fbb, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,889 [DEBUG] expdb:               Offset 0x0000000006640000, Length 0x0000000000a00000
+2026-09-24 02:51:07,892 [DEBUG]                      Flags 0x00000000, UUID 756d934c-50e3-4c91-46af-02d824169ca7, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,898 [DEBUG] frp:                 Offset 0x0000000007040000, Length 0x0000000000100000
+2026-09-24 02:51:07,901 [DEBUG]                      Flags 0x00000000, UUID a3f3c267-5521-42dd-24a7-3bdec20c7c6f, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,917 [DEBUG] tee1:                Offset 0x0000000007140000, Length 0x0000000000500000
+2026-09-24 02:51:07,926 [DEBUG]                      Flags 0x00000000, UUID 8c68cd2a-ccc9-4c5d-578b-34ae9b2dd481, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,939 [DEBUG] tee2:                Offset 0x0000000007640000, Length 0x0000000000500000
+2026-09-24 02:51:07,947 [DEBUG]                      Flags 0x00000000, UUID 6a5cebf8-54a7-4b89-1d8d-c5eb140b095b, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,954 [DEBUG] nvdata:              Offset 0x0000000007b40000, Length 0x0000000002000000
+2026-09-24 02:51:07,964 [DEBUG]                      Flags 0x00000000, UUID a0d65bf8-e8de-4107-3494-1d318c843d37, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,976 [DEBUG] md_udc:              Offset 0x0000000009b40000, Length 0x000000000169a000
+2026-09-24 02:51:07,987 [DEBUG]                      Flags 0x00000000, UUID 46f0c0bb-f227-4eb6-2fb8-66408e13e36d, Type EFI_BASIC_DATA
+2026-09-24 02:51:07,988 [DEBUG] metadata:            Offset 0x000000000b1da000, Length 0x0000000002626000
+2026-09-24 02:51:07,991 [DEBUG]                      Flags 0x00000000, UUID fbc2c131-6392-4217-1eb5-548a6edb03d0, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,003 [DEBUG] oemkeystore:         Offset 0x000000000d800000, Length 0x0000000000200000
+2026-09-24 02:51:08,007 [DEBUG]                      Flags 0x00000000, UUID e195a981-e285-4734-2580-ec323e9589d9, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,011 [DEBUG] secro:               Offset 0x000000000da00000, Length 0x0000000000600000
+2026-09-24 02:51:08,017 [DEBUG]                      Flags 0x00000000, UUID e29052f8-5d3a-4e97-b5ad-5f312ce6610a, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,021 [DEBUG] keystore:            Offset 0x000000000e000000, Length 0x0000000000800000
+2026-09-24 02:51:08,022 [DEBUG]                      Flags 0x00000000, UUID 9c3cabd7-a35d-4b45-578c-b80775426b35, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,025 [DEBUG] super:               Offset 0x000000000e800000, Length 0x000000009d800000
+2026-09-24 02:51:08,032 [DEBUG]                      Flags 0x00000000, UUID e7099731-95a6-45a6-e5a1-1b6aba032cf1, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,036 [DEBUG] cache:               Offset 0x00000000ac000000, Length 0x0000000007000000
+2026-09-24 02:51:08,037 [DEBUG]                      Flags 0x00000000, UUID 8273e1ab-846f-4468-99b9-ee2ea8e50a16, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,038 [DEBUG] userdata:            Offset 0x00000000b3000000, Length 0x00000002f7380000
+2026-09-24 02:51:08,040 [DEBUG]                      Flags 0x00000000, UUID d26472f1-9ebc-421d-14ba-311296457c90, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,041 [DEBUG] flashinfo:           Offset 0x00000003aa380000, Length 0x0000000001000000
+2026-09-24 02:51:08,042 [DEBUG]                      Flags 0x00000000, UUID b72ccbe9-2055-46f4-67a1-4a069c201738, Type EFI_BASIC_DATA
+2026-09-24 02:51:08,049 [DEBUG] Total disk size:0x00000003ab384200, sectors:0x0000000001d59c21
+2026-09-24 02:51:08,050 [INFO] mtk הסתיים עם קוד 0
+2026-09-24 02:51:08,051 [INFO] ■ קריאת GPT: הסתיים
+2026-09-24 02:51:08,113 [INFO] זוהה מעבד: MT6580
+2026-09-24 02:51:08,124 [INFO] סה"כ: 29 מחיצות, גודל דיסק: 14.7 GB
+2026-09-24 02:51:13,967 [INFO] ▶ התחלה: בדיקת מצב אבטחה / בוטלאודר (1 שלבים)
+2026-09-24 02:51:14,043 [INFO] רץ: mtk gettargetconfig --noreconnect
+2026-09-24 02:51:15,603 [DEBUG] usage: mtk.py [-h]
+2026-09-24 02:51:15,604 [DEBUG]               {script,multi,printgpt,gpt,r,rl,rf,rs,ro,fs,w,wf,wl,wo,e,es,ess,footer,reset,dumpbrom,dumpsram,dumppreloader,payload,crash,brute,gettargetconfig,peek,stage,plstage,logs,meta,da}
+2026-09-24 02:51:15,607 [DEBUG]               ...
+2026-09-24 02:51:15,608 [DEBUG] mtk.py: error: unrecognized arguments: --noreconnect
+2026-09-24 02:51:15,611 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 02:51:15,691 [ERROR] mtk הסתיים עם קוד 2
+2026-09-24 02:51:15,692 [ERROR] השלב 'בדיקת מצב אבטחה / בוטלאודר' נכשל (קוד 2) — הרצף נעצר
+2026-09-24 02:51:15,698 [ERROR] ■ בדיקת מצב אבטחה / בוטלאודר: נכשל
+2026-09-24 02:51:18,990 [INFO] ▶ התחלה: בדיקת מצב אבטחה / בוטלאודר (1 שלבים)
+2026-09-24 02:51:18,997 [INFO] רץ: mtk gettargetconfig --noreconnect
+2026-09-24 02:51:20,725 [DEBUG] usage: mtk.py [-h]
+2026-09-24 02:51:20,726 [DEBUG]               {script,multi,printgpt,gpt,r,rl,rf,rs,ro,fs,w,wf,wl,wo,e,es,ess,footer,reset,dumpbrom,dumpsram,dumppreloader,payload,crash,brute,gettargetconfig,peek,stage,plstage,logs,meta,da}
+2026-09-24 02:51:20,729 [DEBUG]               ...
+2026-09-24 02:51:20,731 [DEBUG] mtk.py: error: unrecognized arguments: --noreconnect
+2026-09-24 02:51:20,737 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 02:51:20,954 [ERROR] mtk הסתיים עם קוד 2
+2026-09-24 02:51:20,964 [ERROR] השלב 'בדיקת מצב אבטחה / בוטלאודר' נכשל (קוד 2) — הרצף נעצר
+2026-09-24 02:51:20,974 [ERROR] ■ בדיקת מצב אבטחה / בוטלאודר: נכשל
+2026-09-24 02:51:32,140 [INFO] ▶ התחלה: בדיקת מצב אבטחה / בוטלאודר (1 שלבים)
+2026-09-24 02:51:32,152 [INFO] רץ: mtk gettargetconfig --noreconnect
+2026-09-24 02:51:33,344 [DEBUG] usage: mtk.py [-h]
+2026-09-24 02:51:33,345 [DEBUG]               {script,multi,printgpt,gpt,r,rl,rf,rs,ro,fs,w,wf,wl,wo,e,es,ess,footer,reset,dumpbrom,dumpsram,dumppreloader,payload,crash,brute,gettargetconfig,peek,stage,plstage,logs,meta,da}
+2026-09-24 02:51:33,347 [DEBUG]               ...
+2026-09-24 02:51:33,350 [DEBUG] mtk.py: error: unrecognized arguments: --noreconnect
+2026-09-24 02:51:33,352 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 02:51:33,438 [ERROR] mtk הסתיים עם קוד 2
+2026-09-24 02:51:33,439 [ERROR] השלב 'בדיקת מצב אבטחה / בוטלאודר' נכשל (קוד 2) — הרצף נעצר
+2026-09-24 02:51:33,446 [ERROR] ■ בדיקת מצב אבטחה / בוטלאודר: נכשל
+2026-09-24 02:52:41,186 [INFO] ▶ התחלה: בדיקת מצב אבטחה / בוטלאודר (1 שלבים)
+2026-09-24 02:52:41,197 [INFO] רץ: mtk gettargetconfig --noreconnect
+2026-09-24 02:52:42,411 [DEBUG] usage: mtk.py [-h]
+2026-09-24 02:52:42,412 [DEBUG]               {script,multi,printgpt,gpt,r,rl,rf,rs,ro,fs,w,wf,wl,wo,e,es,ess,footer,reset,dumpbrom,dumpsram,dumppreloader,payload,crash,brute,gettargetconfig,peek,stage,plstage,logs,meta,da}
+2026-09-24 02:52:42,414 [DEBUG]               ...
+2026-09-24 02:52:42,417 [DEBUG] mtk.py: error: unrecognized arguments: --noreconnect
+2026-09-24 02:52:42,419 [DEBUG] MTK Flash/Exploit Client Public V2.0.1 (c) B.Kerler 2018-2024
+2026-09-24 02:52:42,508 [ERROR] mtk הסתיים עם קוד 2
+2026-09-24 02:52:42,508 [ERROR] השלב 'בדיקת מצב אבטחה / בוטלאודר' נכשל (קוד 2) — הרצף נעצר
+2026-09-24 02:52:42,513 [ERROR] ■ בדיקת מצב אבטחה / בוטלאודר: נכשל

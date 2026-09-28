@@ -1,0 +1,113 @@
+2026-09-24 04:16:57,837 [INFO] הפעלת הסקטארוב (מרכז שליטה)
+2026-09-24 04:17:31,784 [INFO] ▶ התחלה: Fastboot: זיהוי מכשיר (1 שלבים)
+2026-09-24 04:17:31,784 [INFO] רץ: fastboot devices
+2026-09-24 04:17:31,865 [DEBUG] 0123456789ABCDEF	 fastboot
+2026-09-24 04:17:31,869 [INFO] fastboot הסתיים עם קוד 0
+2026-09-24 04:17:31,869 [INFO] ■ Fastboot: זיהוי מכשיר: הסתיים
+2026-09-24 04:17:31,874 [INFO] מכשיר: 0123456789ABCDEF	 fastboot
+2026-09-24 04:17:55,924 [INFO] ▶ התחלה: Fastboot: getvar all (1 שלבים)
+2026-09-24 04:17:55,974 [INFO] רץ: fastboot getvar all
+2026-09-24 04:17:56,040 [DEBUG] (bootloader) max-download-size: 0x1000000
+2026-09-24 04:17:56,042 [DEBUG] (bootloader) variant:
+2026-09-24 04:17:56,042 [DEBUG] (bootloader) logical-block-size: 0x200
+2026-09-24 04:17:56,044 [DEBUG] (bootloader) erase-block-size: 0x80000
+2026-09-24 04:17:56,047 [DEBUG] (bootloader) hw-revision: 6580
+2026-09-24 04:17:56,047 [DEBUG] (bootloader) battery-soc-ok: yes
+2026-09-24 04:17:56,048 [DEBUG] (bootloader) battery-voltage: 3280mV
+2026-09-24 04:17:56,049 [DEBUG] (bootloader) partition-size:sgpt: 80000
+2026-09-24 04:17:56,050 [DEBUG] (bootloader) partition-type:sgpt: raw data
+2026-09-24 04:17:56,051 [DEBUG] (bootloader) partition-size:flashinfo: 1000000
+2026-09-24 04:17:56,052 [DEBUG] (bootloader) partition-type:flashinfo: raw data
+2026-09-24 04:17:56,053 [DEBUG] (bootloader) partition-size:userdata: 2f7380000
+2026-09-24 04:17:56,056 [DEBUG] (bootloader) partition-type:userdata: f2fs
+2026-09-24 04:17:56,056 [DEBUG] (bootloader) partition-size:cache: 7000000
+2026-09-24 04:17:56,057 [DEBUG] (bootloader) partition-type:cache: ext4
+2026-09-24 04:17:56,058 [DEBUG] (bootloader) partition-size:super: 9d800000
+2026-09-24 04:17:56,064 [DEBUG] (bootloader) partition-type:super: raw data
+2026-09-24 04:17:56,065 [DEBUG] (bootloader) partition-size:keystore: 800000
+2026-09-24 04:17:56,066 [DEBUG] (bootloader) partition-type:keystore: raw data
+2026-09-24 04:17:56,067 [DEBUG] (bootloader) partition-size:secro: 600000
+2026-09-24 04:17:56,068 [DEBUG] (bootloader) partition-type:secro: raw data
+2026-09-24 04:17:56,069 [DEBUG] (bootloader) partition-size:oemkeystore: 200000
+2026-09-24 04:17:56,073 [DEBUG] (bootloader) partition-type:oemkeystore: raw data
+2026-09-24 04:17:56,075 [DEBUG] (bootloader) partition-size:metadata: 2626000
+2026-09-24 04:17:56,077 [DEBUG] (bootloader) partition-type:metadata: raw data
+2026-09-24 04:17:56,079 [DEBUG] (bootloader) partition-size:md_udc: 169a000
+2026-09-24 04:17:56,082 [DEBUG] (bootloader) partition-type:md_udc: ext4
+2026-09-24 04:17:56,082 [DEBUG] (bootloader) partition-size:nvdata: 2000000
+2026-09-24 04:17:56,084 [DEBUG] (bootloader) partition-type:nvdata: ext4
+2026-09-24 04:17:56,085 [DEBUG] (bootloader) partition-size:tee2: 500000
+2026-09-24 04:17:56,089 [DEBUG] (bootloader) partition-type:tee2: raw data
+2026-09-24 04:17:56,090 [DEBUG] (bootloader) partition-size:tee1: 500000
+2026-09-24 04:17:56,092 [DEBUG] (bootloader) partition-type:tee1: raw data
+2026-09-24 04:17:56,093 [DEBUG] (bootloader) partition-size:frp: 100000
+2026-09-24 04:17:56,095 [DEBUG] (bootloader) partition-type:frp: raw data
+2026-09-24 04:17:56,097 [DEBUG] (bootloader) partition-size:expdb: a00000
+2026-09-24 04:17:56,098 [DEBUG] (bootloader) partition-type:expdb: raw data
+2026-09-24 04:17:56,099 [DEBUG] (bootloader) partition-size:vbmeta_vendor: 800000
+2026-09-24 04:17:56,100 [DEBUG] (bootloader) partition-type:vbmeta_vendor: raw data
+2026-09-24 04:17:56,101 [DEBUG] (bootloader) partition-size:vbmeta_system: 800000
+2026-09-24 04:17:56,103 [DEBUG] (bootloader) partition-type:vbmeta_system: raw data
+2026-09-24 04:17:56,104 [DEBUG] (bootloader) partition-size:vbmeta: 800000
+2026-09-24 04:17:56,105 [DEBUG] (bootloader) partition-type:vbmeta: raw data
+2026-09-24 04:17:56,108 [DEBUG] (bootloader) partition-size:dtbo: 800000
+2026-09-24 04:17:56,110 [DEBUG] (bootloader) partition-type:dtbo: raw data
+2026-09-24 04:17:56,112 [DEBUG] (bootloader) partition-size:logo: 800000
+2026-09-24 04:17:56,113 [DEBUG] (bootloader) partition-type:logo: raw data
+2026-09-24 04:17:56,115 [DEBUG] (bootloader) partition-size:para: 80000
+2026-09-24 04:17:56,116 [DEBUG] (bootloader) partition-type:para: raw data
+2026-09-24 04:17:56,118 [DEBUG] (bootloader) partition-size:recovery: 1000000
+2026-09-24 04:17:56,119 [DEBUG] (bootloader) partition-type:recovery: raw data
+2026-09-24 04:17:56,120 [DEBUG] (bootloader) partition-size:boot: 1000000
+2026-09-24 04:17:56,122 [DEBUG] (bootloader) partition-type:boot: raw data
+2026-09-24 04:17:56,125 [DEBUG] (bootloader) partition-size:lk2: 80000
+2026-09-24 04:17:56,127 [DEBUG] (bootloader) partition-type:lk2: raw data
+2026-09-24 04:17:56,129 [DEBUG] (bootloader) partition-size:lk: 80000
+2026-09-24 04:17:56,130 [DEBUG] (bootloader) partition-type:lk: raw data
+2026-09-24 04:17:56,131 [DEBUG] (bootloader) partition-size:seccfg: 40000
+2026-09-24 04:17:56,133 [DEBUG] (bootloader) partition-type:seccfg: raw data
+2026-09-24 04:17:56,134 [DEBUG] (bootloader) partition-size:protect2: a00000
+2026-09-24 04:17:56,135 [DEBUG] (bootloader) partition-type:protect2: ext4
+2026-09-24 04:17:56,136 [DEBUG] (bootloader) partition-size:protect1: a00000
+2026-09-24 04:17:56,138 [DEBUG] (bootloader) partition-type:protect1: ext4
+2026-09-24 04:17:56,140 [DEBUG] (bootloader) partition-size:nvram: 500000
+2026-09-24 04:17:56,142 [DEBUG] (bootloader) partition-type:nvram: raw data
+2026-09-24 04:17:56,143 [DEBUG] (bootloader) partition-size:proinfo: 300000
+2026-09-24 04:17:56,144 [DEBUG] (bootloader) partition-type:proinfo: raw data
+2026-09-24 04:17:56,145 [DEBUG] (bootloader) partition-size:pgpt: 80000
+2026-09-24 04:17:56,146 [DEBUG] (bootloader) partition-type:pgpt: raw data
+2026-09-24 04:17:56,149 [DEBUG] (bootloader) partition-size:preloader: 40000
+2026-09-24 04:17:56,150 [DEBUG] (bootloader) partition-type:preloader: raw data
+2026-09-24 04:17:56,152 [DEBUG] (bootloader) serialno: 0123456789ABCDEF
+2026-09-24 04:17:56,152 [DEBUG] (bootloader) off-mode-charge: 1
+2026-09-24 04:17:56,156 [DEBUG] (bootloader) warranty: no
+2026-09-24 04:17:56,157 [DEBUG] (bootloader) unlocked: yes
+2026-09-24 04:17:56,159 [DEBUG] (bootloader) secure: no
+2026-09-24 04:17:56,160 [DEBUG] (bootloader) kernel: lk
+2026-09-24 04:17:56,161 [DEBUG] (bootloader) product: r80h1_sye_c12
+2026-09-24 04:17:56,162 [DEBUG] (bootloader) is-userspace: no
+2026-09-24 04:17:56,164 [DEBUG] (bootloader) slot-count: 0
+2026-09-24 04:17:56,166 [DEBUG] (bootloader) version-baseband: N/A
+2026-09-24 04:17:56,167 [DEBUG] (bootloader) version-bootloader: r80h1_sye_c12-52192e99f7e-2025111309455
+2026-09-24 04:17:56,168 [DEBUG] (bootloader) version-preloader: 0.1.00
+2026-09-24 04:17:56,169 [DEBUG] (bootloader) version: 0.5
+2026-09-24 04:17:56,172 [DEBUG] all: Done!!
+2026-09-24 04:17:56,173 [DEBUG] Finished. Total time: 0.021s
+2026-09-24 04:17:56,174 [INFO] fastboot הסתיים עם קוד 0
+2026-09-24 04:17:56,177 [INFO] ■ Fastboot: getvar all: הסתיים
+2026-09-24 04:17:56,187 [INFO] גרסת חומרה: 6580
+2026-09-24 04:17:56,190 [INFO] סוללה תקינה: yes
+2026-09-24 04:17:56,192 [INFO] מתח סוללה: 3280mV
+2026-09-24 04:17:56,193 [INFO] מספר סידורי: 0123456789ABCDEF
+2026-09-24 04:17:56,194 [INFO] בוטלאודר פתוח: yes
+2026-09-24 04:17:56,196 [INFO] Secure: no
+2026-09-24 04:17:56,197 [INFO] מוצר: r80h1_sye_c12
+2026-09-24 04:17:56,198 [INFO] מספר Slots: 0
+2026-09-24 04:17:56,199 [INFO] 🔓 הבוטלאודר פתוח — 【בד״כ!】 ניתן לצרוב.
+2026-09-24 04:21:16,355 [INFO] עיצוב בהיר הופעל
+2026-09-24 04:21:17,899 [INFO] עיצוב כהה הופעל
+
+============================================================
+סיכום הפעלה — 2026-09-24T04:21:18.535149
+החלון נסגר על ידי המשתמש.
+2026-09-24 04:21:18,535 [INFO] הלוג נשמר: C:\Users\karnaf\Desktop\askateroov\workspace\logs\log_20260924_041657.txt

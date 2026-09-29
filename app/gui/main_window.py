@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QSizePolicy,
+    QStackedWidget,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -88,6 +89,7 @@ from ..core.scatter import (
     validate_scatter,
 )
 from . import theme
+from . import ui_kit
 from . import icons as guiicons   # סמלים מצוירים (חץ שאיבה/צריבה)
 from ..core import device_info as devinfo
 from .bus import bus
@@ -564,7 +566,9 @@ class MainWindow(QMainWindow):
     def _help_dot(self, key: str) -> QLabel:
         """סמן בועת-מידע (💡) לצד כפתור פעולה — לחיצה מציגה הסבר על הפעולה:
         מה היא עושה, למה היא משמשת ומה ההשלכות שלה על המכשיר."""
-        dot = QLabel("💡")
+        dot = QLabel()
+        dot.setPixmap(ui_kit.svg_pixmap("info", theme.colors()["muted"], 18))
+        dot.setProperty("helpDot", True)   # נצבע מחדש בהחלפת ערכה (ui_kit.refresh_all)
         title, body = _ACTION_HELP.get(key, ("", "אין מידע."))
         dot.setCursor(Qt.CursorShape.PointingHandCursor)
         dot.setToolTip("לחץ למידע נוסף")
@@ -1072,6 +1076,9 @@ class MainWindow(QMainWindow):
             self.device_status.refresh_theme()   # עיגול המצב והסוללה בכרטיס המכשיר
         if hasattr(self, "logo_label"):
             self.logo_label.update()             # הלוגו מצויר בצבעי הערכה
+        ui_kit.refresh_all(self)                 # כרטיסים, סמני עזרה, כפתורי סמל
+        if getattr(self, "_fs_entries", None):
+            self._fs_apply_icons()
 
     def _recolor_tables(self):
         self._refresh_ports()
@@ -3049,160 +3056,100 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית ADB
     def _tab_adb(self) -> QWidget:
-        """לשונית ADB: מידע על המכשיר + ניהול אפליקציות (התקנה/הסרה)."""
+        """לשונית ADB (לפי הדמו): כותרת לשונית + כרטיסים — מידע · התקנה · אפליקציות ·
+        סייר קבצים · בוטלאודר · הרשאות ניהול · דרייבר. כל הכפתורים מפעילים את אותן
+        פונקציות כמו קודם; רק הסידור והמראה השתנו."""
+        from PySide6.QtCore import QSize
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
 
-        note_row = QHBoxLayout()
-        note = QLabel(
-            "כל הפעולות בלשונית זו דורשות מכשיר דלוק מחובר עם ניפוי באגים USB "
-            "מאושר. הפעולות רצות עם adb.exe מתיקיית tools.")
-        note.setWordWrap(True)
-        note_row.addWidget(note, 1)
-        b_adb_help = QPushButton("❓ הוראות ADB")
+        b_adb_help = QPushButton("הוראות ADB")
         b_adb_help.clicked.connect(lambda: self._show_mode_instructions("adb"))
-        note_row.addWidget(b_adb_help)
-        v.addLayout(note_row)
+        v.addWidget(ui_kit.tab_header(
+            "ADB",
+            "ניהול המכשיר הדלוק: מידע, אפליקציות, קבצים ומעבר ל-Fastboot. "
+            "דורש ניפוי באגים USB מאושר במכשיר.",
+            "ADB", extra=(b_adb_help,)))
 
-        # דרייבר ADB
-        gb_drv = QGroupBox("דרייבר ADB")
-        gd = QHBoxLayout(gb_drv)
-        lbl_drv = QLabel("אם המכשיר לא מזוהה ב-ADB — התקן את דרייבר ה-USB הרשמי של Google:")
-        lbl_drv.setWordWrap(True)
-        gd.addWidget(lbl_drv, 1)
-        b_adb_drv = QPushButton("⬇️ הורדת דרייבר ADB")
-        b_adb_drv.clicked.connect(lambda: QDesktopServices.openUrl(
-            QUrl("https://developer.android.com/studio/run/win-usb")))
-        b_adb_check = QPushButton("🩺 בדיקת דרייבר ADB")
-        b_adb_check.setToolTip("בדיקה קריאה-בלבד: האם דרייבר ה-USB של Google "
-                               "מותקן במחשב הזה")
-        b_adb_check.clicked.connect(lambda: self._check_drivers("adb"))
-        b_adb_install = QPushButton("⚙️ התקנת דרייבר ADB (מתוך התוכנה)")
-        b_adb_install.setToolTip("מתקין את דרייברי Android שארוזים בתוכנה (נדרשת הרשאת מנהל)")
-        b_adb_install.clicked.connect(lambda: self._install_android_drivers("ADB"))
-        gd.addWidget(b_adb_install)
-        gd.addWidget(b_adb_drv)
-        gd.addWidget(b_adb_check)
-        gd.addWidget(self._fix_driver_button())
-        v.addWidget(gb_drv)
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
 
-        # בוטלאודר דרך ADB
-        gb_boot = QGroupBox("בוטלאודר (דרך ADB)")
-        gbv = QVBoxLayout(gb_boot)
-        self.adb_boot_view = QTextEdit()
-        self.adb_boot_view.setReadOnly(True)
-        self.adb_boot_view.setMaximumHeight(95)
-        self.adb_boot_view.setPlaceholderText("לחץ 'בדוק מצב בוטלאודר'.")
-        gbv.addWidget(self.adb_boot_view)
-        boot_row = QHBoxLayout()
-        b_boot_read = QPushButton("🔍 בדוק מצב בוטלאודר")
-        b_boot_read.clicked.connect(self._adb_boot_read)
-        b_boot_unlock = QPushButton("🔓 פתח בוטלאודר")
-        b_boot_unlock.setObjectName("btnWarn")
-        b_boot_unlock.clicked.connect(lambda: self._adb_boot_change(True))
-        b_boot_lock = QPushButton("🔒 נעל בוטלאודר")
-        b_boot_lock.clicked.connect(lambda: self._adb_boot_change(False))
-        # מעבר מ-Android (ADB) למצב Fastboot — בלי לגעת בבוטלאודר ובלי למחוק נתונים
-        b_boot_fb = QPushButton("🚀 עבור למצב Fastboot")
-        b_boot_fb.setToolTip("מאתחל את המכשיר הדלוק למצב Fastboot\u200f (adb reboot bootloader)\u200f "
-                             "וממתין לזיהויו ב-Fastboot. הבוטלאודר לא נפתח ולא ננעל.")
-        b_boot_fb.clicked.connect(self._adb_reboot_bootloader)
-        boot_row.addWidget(b_boot_read)
-        boot_row.addWidget(b_boot_unlock)
-        boot_row.addWidget(b_boot_lock)
-        boot_row.addWidget(b_boot_fb)
-        boot_row.addWidget(self._help_dot("adb_reboot_bl"))
-        boot_row.addStretch(1)
-        gbv.addLayout(boot_row)
-        v.addWidget(gb_boot)
-
-        # מידע על המכשיר (קריאה בלבד)
-        gb_info = QGroupBox("מידע על המכשיר (קריאה בלבד)")
-        gi = QVBoxLayout(gb_info)
-        self.adb_info_view = QTextEdit()
-        self.adb_info_view.setReadOnly(True)
-        self.adb_info_view.setPlaceholderText("לחץ 'קרא מידע' כדי לקרוא את פרטי המכשיר.")
-        self.adb_info_view.setMaximumHeight(160)
-        gi.addWidget(self.adb_info_view)
-        info_btns = QHBoxLayout()
-        b_read_info = QPushButton("ℹ️ קרא מידע")
+        # ---- מידע על המכשיר (קריאה בלבד)
+        c_info = ui_kit.Card("מידע על המכשיר", "דגם, מעבד, גרסת אנדרואיד וסוללה", "info",
+                             ui_kit.Pill("קריאה בלבד", "ok"))
+        # תצוגה חדשה, אותו ממשק (setPlainText) — שורות "שם ← ערך", או הודעה כשאין מכשיר
+        self.adb_info_view = ui_kit.InfoPanel("לחץ 'קרא מידע' כדי לקרוא את פרטי המכשיר.")
+        c_info.add(self.adb_info_view)
+        b_read_info = QPushButton("קרא מידע")
+        b_read_info.setObjectName("btnPrimary")
         b_read_info.clicked.connect(self._read_adb_details)
-        info_btns.addWidget(b_read_info)
-        info_btns.addWidget(self._help_dot("adb_info"))
-        info_btns.addStretch(1)
-        gi.addLayout(info_btns)
-        v.addWidget(gb_info)
+        c_info.add_action(b_read_info)
+        c_info.add_action(self._help_dot("adb_info"))
+        grid.addWidget(c_info, 0, 0)
 
-        # ניהול אפליקציות
-        gb_apps = QGroupBox("ניהול אפליקציות")
-        ga = QVBoxLayout(gb_apps)
-
-        # הסרה לפי שם חבילה
-        row_un = QHBoxLayout()
-        row_un.addWidget(QLabel("שם חבילה להסרה:"))
-        self.adb_pkg_edit = QLineEdit()
-        self.adb_pkg_edit.setPlaceholderText("למשל com.example.app")
-        row_un.addWidget(self.adb_pkg_edit, 1)
-        b_paste = QPushButton("📋 הדבק")
-        b_paste.setToolTip("הדבקת שם חבילה שהועתק (למשל מתפריט הלחיצה הימנית בטבלה)")
-        b_paste.clicked.connect(self._adb_paste_pkg)
-        row_un.addWidget(b_paste)
-        b_uninstall = QPushButton("🗑️ הסר (מסומנות / לפי שם)")
-        b_uninstall.setToolTip("מסיר את כל האפליקציות שסומנו ✔ בטבלה; "
-                               "אם לא סומנה אף אחת — את החבילה שבשדה")
-        b_uninstall.clicked.connect(self._adb_uninstall)
-        row_un.addWidget(b_uninstall)
-        row_un.addWidget(self._help_dot("adb_uninstall"))
-        ga.addLayout(row_un)
-
-        # התקנה מקובץ APK
+        # ---- התקנת אפליקציה
+        c_inst = ui_kit.Card("התקנת אפליקציה",
+                             "בוחרים קובץ מהמחשב — גם חבילות מפוצלות מותקנות בבת אחת",
+                             "download", ui_kit.Pill("כתיבה", "warn"))
+        lbl_file = QLabel("קובץ להתקנה")
+        lbl_file.setObjectName("hint")
+        c_inst.add(lbl_file)
         row_in = QHBoxLayout()
-        row_in.addWidget(QLabel("קובץ APK להתקנה:"))
+        row_in.setSpacing(8)
         self.adb_apk_edit = QLineEdit()
-        self.adb_apk_edit.setPlaceholderText("בחר קובץ \u200e.apk מהמחשב…")
+        self.adb_apk_edit.setPlaceholderText("לא נבחר קובץ")
         row_in.addWidget(self.adb_apk_edit, 1)
-        b_apk_browse = QPushButton("…")
-        b_apk_browse.setMaximumWidth(52)
+        b_apk_browse = QPushButton("בחר קובץ…")
         b_apk_browse.clicked.connect(self._adb_browse_apk)
         row_in.addWidget(b_apk_browse)
-        ga.addLayout(row_in)
-        fmt_lbl = QLabel("פורמטים נתמכים: APK · XAPK · APKM · APKS "
-                         "(חבילות מפוצלות מותקנות אוטומטית).")
+        c_inst.add_layout(row_in)
+        # סוגי החבילות — כתובים במפורש (לבקשת המשתמש)
+        fmt_row = QHBoxLayout()
+        fmt_row.setSpacing(6)
+        fmt_lbl = QLabel("סוגי חבילות שאפשר להתקין:")
         fmt_lbl.setObjectName("hint")
-        fmt_lbl.setWordWrap(True)
-        ga.addWidget(fmt_lbl)
-        row_opts = QHBoxLayout()
-        self.adb_reinstall_check = QCheckBox("עדכן אם האפליקציה קיימת (-r)")
-        self.adb_reinstall_check.setToolTip("מאפשר התקנה על גבי גרסה קיימת במקום כישלון")
+        fmt_row.addWidget(fmt_lbl)
+        for name, tip in (("APK", "קובץ אפליקציה רגיל"),
+                          ("APKM", "חבילה מפוצלת (APKMirror)"),
+                          ("XAPK", "חבילה מפוצלת (APKPure)"),
+                          ("APKS", "חבילה מפוצלת (SAI / bundletool)")):
+            fmt_row.addWidget(ui_kit.Pill(name, "info", tip))
+        fmt_row.addStretch(1)
+        c_inst.add_layout(fmt_row)
+        split_note = QLabel("APKM, XAPK ו-APKS הן חבילות מפוצלות — התוכנה מחלצת מהן את כל "
+                            "החלקים ומתקינה אותם יחד.")
+        split_note.setObjectName("hint")
+        split_note.setWordWrap(True)
+        c_inst.add(split_note)
+        self.adb_reinstall_check = QCheckBox("עדכן אם האפליקציה כבר מותקנת (שומר את הנתונים שלה)")
+        self.adb_reinstall_check.setToolTip("מאפשר התקנה על גבי גרסה קיימת במקום כישלון (-r)")
         self.adb_reinstall_check.setChecked(True)
-        row_opts.addWidget(self.adb_reinstall_check)
-        self.adb_downgrade_check = QCheckBox("אפשר גם גרסה ישנה יותר (-d)")
+        c_inst.add(self.adb_reinstall_check)
+        self.adb_downgrade_check = QCheckBox("אפשר גם גרסה ישנה יותר")
         self.adb_downgrade_check.setToolTip(
-            "מאפשר התקנה של גרסה נמוכה מהמותקנת (VERSION_DOWNGRADE)")
-        row_opts.addWidget(self.adb_downgrade_check)
-        b_install = QPushButton("📦 התקן (APK · XAPK · APKM · APKS)")
+            "מאפשר התקנה של גרסה נמוכה מהמותקנת (-d, VERSION_DOWNGRADE)")
+        c_inst.add(self.adb_downgrade_check)
+        b_install = QPushButton("התקן")
+        b_install.setObjectName("btnPrimary")
         b_install.clicked.connect(self._adb_install)
-        row_opts.addWidget(b_install)
-        row_opts.addWidget(self._help_dot("adb_install"))
-        row_opts.addStretch(1)
-        ga.addLayout(row_opts)
+        c_inst.add_action(b_install)
+        c_inst.add_action(self._help_dot("adb_install"))
+        grid.addWidget(c_inst, 0, 1)
 
-        # רשימת חבילות מותקנות (קריאה בלבד) — לעזרה באיתור שם חבילה
-        row_list = QHBoxLayout()
+        # ---- אפליקציות (ברוחב מלא)
+        c_apps = ui_kit.Card("אפליקציות",
+                             "האפליקציות המותקנות במכשיר — מידע, הסרה ובחירת חבילה", "apps")
+        top_apps = QHBoxLayout()
         self.adb_sys_check = QCheckBox("הצג גם אפליקציות מערכת")
-        row_list.addWidget(self.adb_sys_check)
-        b_list = QPushButton("📋 רשימת אפליקציות מותקנות")
-        b_list.clicked.connect(self._adb_list_packages)
-        row_list.addWidget(b_list)
-        b_info = QPushButton("ℹ️ מידע על האפליקציה")
-        b_info.setToolTip("מידע מלא על האפליקציה שנבחרה (אפשר גם בלחיצה כפולה על שורה)")
-        b_info.clicked.connect(self._adb_app_info)
-        row_list.addWidget(b_info)
-        row_list.addWidget(self._help_dot("adb_list"))
-        row_list.addStretch(1)
-        ga.addLayout(row_list)
+        top_apps.addWidget(self.adb_sys_check)
+        top_apps.addStretch(1)
+        c_apps.add_layout(top_apps)
         # טבלת אפליקציות: תמונה + שם אמיתי, חבילה, גרסה, גודל
-        from PySide6.QtCore import QSize
         self.adb_apps_table = QTableWidget(0, 4)
         self.adb_apps_table.setHorizontalHeaderLabels(["אפליקציה", "שם חבילה", "גרסה", "גודל"])
         hh = self.adb_apps_table.horizontalHeader()
@@ -3222,50 +3169,89 @@ class MainWindow(QMainWindow):
         # לחיצה ימנית: העתקת שם חבילה / העברה לשדה ההסרה / מידע / שחזור
         self.adb_apps_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.adb_apps_table.customContextMenuRequested.connect(self._apps_context_menu)
-        ga.addWidget(self.adb_apps_table)
+        # לפני הטעינה הראשונה — מצב ריק (כמו בדמו); הטבלה מוצגת כשמגיעה רשימה
+        self._apps_empty = ui_kit.EmptyState("הרשימה עוד לא נטענה — לחץ על ״טען רשימה״.")
+        self._apps_empty.setMinimumHeight(160)
+        self._apps_stack = QStackedWidget()
+        self._apps_stack.addWidget(self._apps_empty)
+        self._apps_stack.addWidget(self.adb_apps_table)
+        c_apps.add(self._apps_stack)
         self._apps_gen = 0
         self._apps_rows: dict = {}
-        # הודעות התקנה/הסרה/טעינה
+        # הודעות התקנה/הסרה/טעינה — בסגנון שקט
         self.adb_pkgs_view = QTextEdit()
+        self.adb_pkgs_view.setObjectName("quietBox")
         self.adb_pkgs_view.setReadOnly(True)
         self.adb_pkgs_view.setPlaceholderText(
             "הודעות: טעינת הרשימה, התקנה והסרה. לחיצה על שורה בטבלה ממלאת את שדה ההסרה.")
-        self.adb_pkgs_view.setMaximumHeight(70)
-        ga.addWidget(self.adb_pkgs_view)
+        self.adb_pkgs_view.setMaximumHeight(54)
+        c_apps.add(self.adb_pkgs_view)
+        # הסרה לפי שם חבילה
+        row_un = QHBoxLayout()
+        row_un.setSpacing(8)
+        lbl_un = QLabel("שם חבילה להסרה:")
+        lbl_un.setObjectName("hint")
+        row_un.addWidget(lbl_un)
+        self.adb_pkg_edit = QLineEdit()
+        self.adb_pkg_edit.setPlaceholderText("למשל com.example.app")
+        row_un.addWidget(self.adb_pkg_edit, 1)
+        b_paste = QPushButton("הדבק")
+        b_paste.setToolTip("הדבקת שם חבילה שהועתק (למשל מתפריט הלחיצה הימנית בטבלה)")
+        b_paste.clicked.connect(self._adb_paste_pkg)
+        row_un.addWidget(b_paste)
+        c_apps.add_layout(row_un)
+        b_list = QPushButton("טען רשימה")
+        b_list.setObjectName("btnPrimary")
+        b_list.setToolTip("רשימת האפליקציות המותקנות במכשיר")
+        b_list.clicked.connect(self._adb_list_packages)
+        c_apps.add_action(b_list)
+        c_apps.add_action(self._help_dot("adb_list"))
+        b_info = QPushButton("מידע על האפליקציה")
+        b_info.setToolTip("מידע מלא על האפליקציה שנבחרה (אפשר גם בלחיצה כפולה על שורה)")
+        b_info.clicked.connect(self._adb_app_info)
+        c_apps.add_action(b_info)
+        spacer_apps = QWidget()
+        c_apps.add_action(spacer_apps, 1)
+        b_uninstall = QPushButton("הסר (מסומנות / לפי שם)")
+        b_uninstall.setObjectName("btnDangerOutline")
+        b_uninstall.setToolTip("מסיר את כל האפליקציות שסומנו ✔ בטבלה; "
+                               "אם לא סומנה אף אחת — את החבילה שבשדה")
+        b_uninstall.clicked.connect(self._adb_uninstall)
+        c_apps.add_action(b_uninstall)
+        c_apps.add_action(self._help_dot("adb_uninstall"))
+        grid.addWidget(c_apps, 1, 0, 1, 2)
 
-        v.addWidget(gb_apps)
-
-        # סייר קבצים (ADB)
-        gb_fs = QGroupBox("סייר קבצים (ADB)")
-        gfs = QVBoxLayout(gb_fs)
-        fs_note = QLabel(
-            "עיון בקבצים שבמכשיר, הורדה/העלאה, מחיקה, שינוי שם ועריכת טקסט. "
-            "בלי root הגישה מוגבלת ל-/sdcard.")
-        fs_note.setWordWrap(True)
-        fs_note.setObjectName("hint")
-        gfs.addWidget(fs_note)
-        path_row = QHBoxLayout()
-        b_fs_up = QPushButton("⬆️ למעלה")
+        # ---- סייר קבצים (ברוחב מלא, גדול)
+        c_fs = ui_kit.Card("סייר קבצים",
+                           "עיון בקבצים שבמכשיר, הורדה/העלאה, מחיקה, שינוי שם ועריכת טקסט. "
+                           "בלי root הגישה מוגבלת ל-/sdcard.", "folder")
+        bar = QHBoxLayout()
+        bar.setSpacing(8)
+        b_fs_up = ui_kit.icon_button("up", "תיקייה למעלה")
         b_fs_up.clicked.connect(self._fs_up)
-        path_row.addWidget(b_fs_up)
-        b_fs_home = QPushButton("🏠 /sdcard")
-        b_fs_home.clicked.connect(lambda: self._fs_load("/sdcard"))
-        path_row.addWidget(b_fs_home)
+        bar.addWidget(b_fs_up)
+        # הנתיב — כל חלק בו הוא כפתור (כמו בדמו); ✎ מאפשר גם להקליד נתיב
+        self._fs_crumbs = QFrame()
+        self._fs_crumbs.setObjectName("crumbs")
+        self._fs_crumbs.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._fs_crumbs.setMinimumHeight(38)
+        self._fs_crumbs_lay = QHBoxLayout(self._fs_crumbs)
+        self._fs_crumbs_lay.setContentsMargins(6, 2, 6, 2)
+        self._fs_crumbs_lay.setSpacing(0)
+        bar.addWidget(self._fs_crumbs, 1)
         self.fs_path_edit = QLineEdit("/sdcard")
-        self.fs_path_edit.returnPressed.connect(
-            lambda: self._fs_load(self.fs_path_edit.text().strip() or "/sdcard"))
-        path_row.addWidget(self.fs_path_edit, 1)
-        b_fs_go = QPushButton("↵ עבור")
-        b_fs_go.clicked.connect(
-            lambda: self._fs_load(self.fs_path_edit.text().strip() or "/sdcard"))
-        path_row.addWidget(b_fs_go)
-        b_fs_refresh = QPushButton("🔄")
-        b_fs_refresh.setToolTip("רענן")
-        b_fs_refresh.setMaximumWidth(52)
+        self.fs_path_edit.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self.fs_path_edit.setToolTip("הקלד נתיב ולחץ Enter")
+        self.fs_path_edit.returnPressed.connect(self._fs_path_entered)
+        self.fs_path_edit.setVisible(False)
+        bar.addWidget(self.fs_path_edit, 1)
+        b_fs_edit = ui_kit.icon_button("edit", "הקלדת נתיב")
+        b_fs_edit.clicked.connect(self._fs_toggle_path_edit)
+        bar.addWidget(b_fs_edit)
+        b_fs_refresh = ui_kit.icon_button("refresh", "רענן")
         b_fs_refresh.clicked.connect(self._fs_refresh)
-        path_row.addWidget(b_fs_refresh)
-        gfs.addLayout(path_row)
-
+        bar.addWidget(b_fs_refresh)
+        c_fs.add_layout(bar)
         self.fs_table = QTableWidget(0, 3)
         self.fs_table.setHorizontalHeaderLabels(["שם", "גודל", "סוג"])
         fhh = self.fs_table.horizontalHeader()
@@ -3273,34 +3259,93 @@ class MainWindow(QMainWindow):
         fhh.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         fhh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.fs_table.verticalHeader().setVisible(False)
+        self.fs_table.verticalHeader().setDefaultSectionSize(40)
+        self.fs_table.setIconSize(QSize(18, 18))
         self.fs_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.fs_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.fs_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.fs_table.setMinimumHeight(260)
+        self.fs_table.setMinimumHeight(380)
         self.fs_table.itemDoubleClicked.connect(self._fs_double_clicked)
-        gfs.addWidget(self.fs_table)
-
-        fs_btns = QHBoxLayout()
-        for text, slot in (("⬇️ הורד", self._fs_download),
-                           ("⬆️ העלה קובץ", self._fs_upload),
-                           ("✏️ ערוך טקסט", self._fs_edit),
-                           ("📁 תיקייה חדשה", self._fs_mkdir),
-                           ("✏️ שנה שם", self._fs_rename),
-                           ("🗑️ מחק", self._fs_delete)):
+        self.fs_table.itemSelectionChanged.connect(self._fs_selection_changed)
+        # לפני הטעינה הראשונה — מצב ריק; הטבלה מוצגת כשמגיעה רשימת קבצים
+        self._fs_empty = ui_kit.EmptyState("כדי לעיין בקבצים — התחבר בערוץ ADB ולחץ על ״רענן״.")
+        self._fs_empty.setMinimumHeight(380)
+        self._fs_stack = QStackedWidget()
+        self._fs_stack.addWidget(self._fs_empty)
+        self._fs_stack.addWidget(self.fs_table)
+        c_fs.add(self._fs_stack)
+        for text, slot, role in (("הורד למחשב", self._fs_download, "btnPrimary"),
+                                 ("העלה קובץ…", self._fs_upload, ""),
+                                 ("תיקייה חדשה", self._fs_mkdir, ""),
+                                 ("שנה שם", self._fs_rename, ""),
+                                 ("ערוך קובץ טקסט", self._fs_edit, "")):
             b = QPushButton(text)
-            if "מחק" in text:
-                b.setObjectName("btnWarn")
+            if role:
+                b.setObjectName(role)
             b.clicked.connect(slot)
-            fs_btns.addWidget(b)
-        fs_btns.addStretch(1)
-        gfs.addLayout(fs_btns)
+            c_fs.add_action(b)
+        self._fs_sel_label = QLabel("")
+        self._fs_sel_label.setObjectName("hint")
+        c_fs.add_action(self._fs_sel_label, 1)
+        b_fs_del = QPushButton("מחק")
+        b_fs_del.setObjectName("btnDangerOutline")
+        b_fs_del.clicked.connect(self._fs_delete)
+        c_fs.add_action(b_fs_del)
         self._fs_entries: list = []
         self._fs_cwd = "/sdcard"
-        v.addWidget(gb_fs)
+        self._fs_update_crumbs("/sdcard")
+        grid.addWidget(c_fs, 2, 0, 1, 2)
 
-        # הרשאות ניהול מלאות למכשיר (device owner / device admin)
-        gb_admin = QGroupBox("הרשאות ניהול מלאות למכשיר (למשל אפליקציות סינון)")
-        gadm = QVBoxLayout(gb_admin)
+        # ---- בוטלאודר ומעבר ל-Fastboot (ברוחב מלא — ארבעה כפתורים)
+        c_boot = ui_kit.Card("בוטלאודר ומעבר ל-Fastboot",
+                             "בדיקת מצב הנעילה, ומעבר נוח למצב Fastboot", "bolt")
+        self.adb_boot_view = QTextEdit()
+        self.adb_boot_view.setReadOnly(True)
+        self.adb_boot_view.setMaximumHeight(95)
+        self.adb_boot_view.setPlaceholderText("לחץ 'בדוק מצב בוטלאודר'.")
+        c_boot.add(self.adb_boot_view)
+        b_boot_read = QPushButton("בדוק מצב בוטלאודר")
+        b_boot_read.clicked.connect(self._adb_boot_read)
+        c_boot.add_action(b_boot_read)
+        # מעבר מ-Android (ADB) למצב Fastboot — בלי לגעת בבוטלאודר ובלי למחוק נתונים
+        b_boot_fb = QPushButton("עבור למצב Fastboot")
+        b_boot_fb.setObjectName("btnSoft")
+        b_boot_fb.setToolTip("מאתחל את המכשיר הדלוק למצב Fastboot\u200f (adb reboot bootloader)\u200f "
+                             "וממתין לזיהויו ב-Fastboot. הבוטלאודר לא נפתח ולא ננעל.")
+        b_boot_fb.clicked.connect(self._adb_reboot_bootloader)
+        c_boot.add_action(b_boot_fb)
+        c_boot.add_action(self._help_dot("adb_reboot_bl"))
+        spacer_boot = QWidget()
+        c_boot.add_action(spacer_boot, 1)
+        b_boot_unlock = QPushButton("פתח בוטלאודר")
+        b_boot_unlock.setObjectName("btnDanger")
+        b_boot_unlock.clicked.connect(lambda: self._adb_boot_change(True))
+        c_boot.add_action(b_boot_unlock)
+        b_boot_lock = QPushButton("נעל בוטלאודר")
+        b_boot_lock.setObjectName("btnDangerOutline")
+        b_boot_lock.clicked.connect(lambda: self._adb_boot_change(False))
+        c_boot.add_action(b_boot_lock)
+        grid.addWidget(c_boot, 3, 0, 1, 2)
+
+        # ---- הרשאות ניהול מלאות (device owner / device admin)
+        c_adm = ui_kit.Card("הרשאות ניהול מלאות",
+                            "למשל לאפליקציות סינון — כדי שלא יהיה אפשר להסיר אותן", "admin",
+                            ui_kit.Pill("כתיבה", "warn"))
+        lbl_pkg = QLabel("חבילה")
+        lbl_pkg.setObjectName("hint")
+        c_adm.add(lbl_pkg)
+        row_adm = QHBoxLayout()
+        row_adm.setSpacing(8)
+        self.adb_admin_edit = QLineEdit()
+        self.adb_admin_edit.setPlaceholderText("com.example.filter  (או בחר שורה בטבלה)")
+        row_adm.addWidget(self.adb_admin_edit, 1)
+        b_adm_paste = QPushButton("הדבק")
+        b_adm_paste.clicked.connect(
+            lambda: self.adb_admin_edit.setText(
+                (QApplication.clipboard().text() or "").strip().splitlines()[0]
+                if (QApplication.clipboard().text() or "").strip() else ""))
+        row_adm.addWidget(b_adm_paste)
+        c_adm.add_layout(row_adm)
         adm_note = QLabel(
             "מעניק לאפליקציה הרשאות בעלים על המכשיר (device owner) — נדרש לרוב "
             "אפליקציות סינון/בקרת-הורים כדי שלא ניתן יהיה להסירן.\n"
@@ -3308,35 +3353,115 @@ class MainWindow(QMainWindow):
             "מומלץ לבצע מיד אחרי איפוס לפני הוספת חשבונות.\n"
             "⚠️ הסרת הבעלות בהמשך עלולה לדרוש איפוס להגדרות יצרן.")
         adm_note.setWordWrap(True)
-        adm_note.setObjectName("hintWarn")
-        gadm.addWidget(adm_note)
-        row_adm = QHBoxLayout()
-        row_adm.addWidget(QLabel("שם חבילה:"))
-        self.adb_admin_edit = QLineEdit()
-        self.adb_admin_edit.setPlaceholderText("com.example.filter  (או בחר שורה בטבלה)")
-        row_adm.addWidget(self.adb_admin_edit, 1)
-        b_adm_paste = QPushButton("📋 הדבק")
-        b_adm_paste.clicked.connect(
-            lambda: self.adb_admin_edit.setText(
-                (QApplication.clipboard().text() or "").strip().splitlines()[0]
-                if (QApplication.clipboard().text() or "").strip() else ""))
-        row_adm.addWidget(b_adm_paste)
-        gadm.addLayout(row_adm)
-        row_adm2 = QHBoxLayout()
-        b_owner = QPushButton("👑 הענק בעלות מלאה (device owner)")
-        b_owner.setObjectName("btnWarn")
+        adm_note.setObjectName("noticeWarn")
+        c_adm.add(adm_note)
+        b_owner = QPushButton("הענק בעלות מלאה")
+        b_owner.setObjectName("btnPrimary")
+        b_owner.setToolTip("device owner")
         b_owner.clicked.connect(lambda: self._adb_grant_admin(owner=True))
-        row_adm2.addWidget(b_owner)
-        b_admin = QPushButton("🛡️ הפעל כמנהל-התקן (device admin)")
+        c_adm.add_action(b_owner)
+        b_admin = QPushButton("הפעל כמנהל-התקן")
+        b_admin.setToolTip("device admin")
         b_admin.clicked.connect(lambda: self._adb_grant_admin(owner=False))
-        row_adm2.addWidget(b_admin)
-        row_adm2.addWidget(self._help_dot("adb_admin"))
-        row_adm2.addStretch(1)
-        gadm.addLayout(row_adm2)
-        v.addWidget(gb_admin)
+        c_adm.add_action(b_admin)
+        c_adm.add_action(self._help_dot("adb_admin"))
+        grid.addWidget(c_adm, 4, 0)
 
+        # ---- דרייבר ADB
+        c_drv = ui_kit.Card("דרייבר ADB",
+                            "אם המכשיר לא מזוהה ב-ADB — צריך את דרייבר ה-USB של Android "
+                            "(Google USB Driver)", "wrench")
+        drv_box = QFrame()
+        drv_box.setObjectName("kvList")
+        dh = QHBoxLayout(drv_box)
+        dh.setContentsMargins(16, 10, 16, 10)
+        drv_name = QLabel("ממשק ADB של Android")
+        drv_name.setObjectName("kvVal")
+        dh.addWidget(drv_name, 1)
+        self.adb_drv_pill = ui_kit.Pill("לא נבדק", "neutral")   # מתעדכן אחרי "בדיקת דרייבר ADB"
+        dh.addWidget(self.adb_drv_pill)
+        c_drv.add(drv_box)
+        b_fix = self._fix_driver_button()
+        b_fix.setText("תקן דרייבר למכשיר המחובר")
+        b_fix.setObjectName("btnSoft")
+        c_drv.add_action(b_fix)
+        b_adb_check = QPushButton("בדיקת דרייבר ADB")
+        b_adb_check.setToolTip("בדיקה קריאה-בלבד: האם דרייבר ה-USB של Google "
+                               "מותקן במחשב הזה")
+        b_adb_check.clicked.connect(lambda: self._check_drivers("adb"))
+        c_drv.add_action(b_adb_check)
+        c_drv.add_action(ui_kit.menu_button("התקנה והורדה", [
+            ("התקנת דרייבר ADB (מתוך התוכנה)", lambda: self._install_android_drivers("ADB")),
+            None,
+            ("הורדת דרייבר ADB (Google)", lambda: QDesktopServices.openUrl(
+                QUrl("https://developer.android.com/studio/run/win-usb"))),
+        ]))
+        grid.addWidget(c_drv, 4, 1)
+
+        v.addLayout(grid)
         v.addStretch(1)
         return w
+
+    # ------------------------------------------------------------ סייר קבצים — נתיב ובחירה
+    def _fs_update_crumbs(self, path: str):
+        """בונה את הנתיב שאפשר ללחוץ על כל חלק בו (כמו בדמו)."""
+        lay = self._fs_crumbs_lay
+        while lay.count():
+            item = lay.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        parts = [p for p in (path or "/").split("/") if p]
+        if not parts:
+            b = QPushButton("/")
+            b.setObjectName("crumb")
+            b.clicked.connect(lambda: self._fs_load("/"))
+            lay.addWidget(b)
+        acc = ""
+        for i, part in enumerate(parts):
+            acc += "/" + part
+            if i:
+                sep = QLabel("/")
+                sep.setObjectName("crumbSep")
+                lay.addWidget(sep)
+            b = QPushButton(part)
+            b.setObjectName("crumb")
+            b.clicked.connect(lambda _=False, p=acc: self._fs_load(p))
+            lay.addWidget(b)
+        lay.addStretch(1)
+
+    def _fs_toggle_path_edit(self):
+        """✎ — מעבר בין הנתיב הלחיץ לבין שדה להקלדת נתיב."""
+        editing = not self.fs_path_edit.isVisible()
+        self.fs_path_edit.setVisible(editing)
+        self._fs_crumbs.setVisible(not editing)
+        if editing:
+            self.fs_path_edit.setText(self._fs_cwd)
+            self.fs_path_edit.setFocus()
+            self.fs_path_edit.selectAll()
+
+    def _fs_path_entered(self):
+        self._fs_load(self.fs_path_edit.text().strip() or "/sdcard")
+        if self.fs_path_edit.isVisible():
+            self._fs_toggle_path_edit()
+
+    def _fs_selection_changed(self):
+        rows = self.fs_table.selectionModel().selectedRows()
+        r = rows[0].row() if rows else -1
+        if 0 <= r < len(self._fs_entries):
+            self._fs_sel_label.setText(f"נבחר: {self._fs_entries[r].name}")
+        else:
+            self._fs_sel_label.setText(f"{len(self._fs_entries)} פריטים")
+
+    def _fs_apply_icons(self):
+        """סמלי תיקייה / קובץ / קישור בטבלת הסייר — מצוירים, בצבעי הערכה."""
+        c = theme.colors()
+        icons = {"dir": ui_kit.svg_icon("folder_fill", c["accent"], 18),
+                 "link": ui_kit.svg_icon("link", c["muted"], 18),
+                 "file": ui_kit.svg_icon("file", c["muted"], 18)}
+        for r, e in enumerate(self._fs_entries):
+            item = self.fs_table.item(r, 0)
+            if item is not None:
+                item.setIcon(icons["dir" if e.is_dir else ("link" if e.is_link else "file")])
 
     def _adb_browse_apk(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -3663,16 +3788,19 @@ class MainWindow(QMainWindow):
         self._fs_entries = entries
         self._fs_cwd = path
         self.fs_path_edit.setText(path)
+        self._fs_update_crumbs(path)
+        self._fs_stack.setCurrentWidget(self.fs_table)
         t = self.fs_table
         t.setRowCount(0)
         for e in entries:
             r = t.rowCount()
             t.insertRow(r)
-            icon = "📁 " if e.is_dir else ("🔗 " if e.is_link else "📄 ")
-            t.setItem(r, 0, QTableWidgetItem(icon + e.name))
-            t.setItem(r, 1, QTableWidgetItem(e.size_str))
+            t.setItem(r, 0, QTableWidgetItem(e.name))   # הסמל — ב-_fs_apply_icons
+            t.setItem(r, 1, QTableWidgetItem(f"\u2066{e.size_str}\u2069" if e.size_str else ""))
             t.setItem(r, 2, QTableWidgetItem(
                 "תיקייה" if e.is_dir else ("קישור" if e.is_link else "קובץ")))
+        self._fs_apply_icons()
+        self._fs_selection_changed()
         self._say("info", f"סייר: {len(entries)} פריטים ב-{path}")
 
     def _fs_refresh(self):
@@ -4087,6 +4215,7 @@ class MainWindow(QMainWindow):
         gen, apps = payload
         if gen != self._apps_gen:
             return
+        self._apps_stack.setCurrentWidget(self.adb_apps_table)
         t = self.adb_apps_table
         t.setRowCount(len(apps))
         self._apps_rows = {}
@@ -4121,7 +4250,7 @@ class MainWindow(QMainWindow):
         if app.note and not app.icon_file:
             item.setToolTip(f"לא נמצאה תמונה: {app.note}")
         t.item(r, 2).setText(app.version or "")
-        t.item(r, 3).setText(format_size(app.size) if app.size else "")
+        t.item(r, 3).setText(f"\u2066{format_size(app.size)}\u2069" if app.size else "")
         # מד ההתקדמות למטה מתקדם עם הטעינה
         if self.progress.maximum() != total:
             self.progress.setRange(0, total)
@@ -4355,6 +4484,8 @@ class MainWindow(QMainWindow):
                   else drivers.check_mode(kind))
         finally:
             QApplication.restoreOverrideCursor()
+        if kind == "adb" and hasattr(self, "adb_drv_pill"):
+            self.adb_drv_pill.set("מותקן במחשב" if st.ok else "לא מותקן", "ok" if st.ok else "warn")
         text = drivers.format_status(st)
         for line in text.splitlines():
             self._say("info" if st.ok else "warning", line.strip())

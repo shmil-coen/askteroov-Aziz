@@ -33,7 +33,7 @@ PALETTES = {
         "text": "#e8eaef", "muted": "#a3aab6",
         "accent": "#6ea2ff", "accent_soft": "rgba(110,162,255,0.14)",
         "btn": "#2f6ee0", "btn_hover": "#3a7af0", "btn_pressed": "#2860c8", "btn_text": "#ffffff",
-        "ok": "#4cc68a", "ok_soft": "rgba(76,198,138,0.13)", "warn": "#e8b04a", "danger": "#e5534b",
+        "ok": "#4cc68a", "ok_soft": "rgba(76,198,138,0.13)", "warn": "#e8b04a", "warn_soft": "rgba(232,176,74,0.14)", "danger": "#e5534b", "danger_soft": "rgba(229,83,75,0.14)",
         "danger_btn": "#c8322b", "danger_hover": "#d63b33", "danger_pressed": "#b02a24",
         "warn_btn": "#a15c00", "warn_hover": "#b06600", "warn_pressed": "#8a4f00",
         "disabled": "#6b7280",
@@ -45,7 +45,7 @@ PALETTES = {
         "text": "#e9f0f9", "muted": "#9fb3cd",
         "accent": "#72b0ff", "accent_soft": "rgba(114,176,255,0.15)",
         "btn": "#5ea4ff", "btn_hover": "#74b1ff", "btn_pressed": "#4a93f0", "btn_text": "#08182c",
-        "ok": "#4fd092", "ok_soft": "rgba(79,208,146,0.14)", "warn": "#f0b64e", "danger": "#f06a60",
+        "ok": "#4fd092", "ok_soft": "rgba(79,208,146,0.14)", "warn": "#f0b64e", "warn_soft": "rgba(240,182,78,0.15)", "danger": "#f06a60", "danger_soft": "rgba(240,106,96,0.15)",
         "danger_btn": "#d23a31", "danger_hover": "#e0443a", "danger_pressed": "#b8302a",
         "warn_btn": "#a15c00", "warn_hover": "#b06600", "warn_pressed": "#8a4f00",
         "disabled": "#6f86a3",
@@ -213,7 +213,8 @@ QComboBox QAbstractItemView {{ background: {c['surface']}; border: 1px solid {c[
                               selection-background-color: {c['accent_soft']}; selection-color: {c['text']}; outline: none; }}
 
 /* ---- טבלאות ---- */
-QTableWidget, QTableView {{ gridline-color: {c['border']}; alternate-background-color: {c['surface']}; }}
+QTableWidget, QTableView {{ gridline-color: {c['border']}; alternate-background-color: {c['surface']};
+                           selection-background-color: {c['accent_soft']}; selection-color: {c['text']}; }}
 QTableWidget::item:selected, QTableView::item:selected {{ background: {c['accent_soft']}; color: {c['text']}; }}
 QHeaderView::section {{ background: {c['surface2']}; color: {c['muted']}; border: none;
                        border-bottom: 1px solid {c['border']}; padding: 6px 8px; font-weight: 600; }}
@@ -271,6 +272,54 @@ QLabel#statusDot[state="run"] {{ background: {c['accent']}; }}
 QLabel#statusDot[state="err"] {{ background: {c['danger']}; }}
 QProgressBar#statusProgress {{ min-height: 7px; max-height: 7px; border-radius: 3px; }}
 QProgressBar#statusProgress::chunk {{ border-radius: 3px; }}
+
+/* ---- כותרת לשונית (ui_kit.tab_header) ---- */
+QLabel#tabTitle {{ font-size: 16pt; font-weight: 600; }}
+QLabel#tabDesc {{ color: {c['muted']}; font-size: 10.5pt; }}
+QLabel#chanChip {{ color: {c['muted']}; background: {c['surface']}; border: 1px solid {c['border']};
+                  border-radius: 12px; padding: 5px 14px; font-size: 10pt; }}
+
+/* ---- כרטיס (ui_kit.Card) ---- */
+QFrame#card {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 16px; }}
+QLabel#cardIcon {{ background: {c['accent_soft']}; border-radius: 10px; }}
+QLabel#cardIcon[danger="true"] {{ background: {c['danger_soft']}; }}
+QLabel#cardTitle {{ font-size: 13pt; font-weight: 600; }}
+QLabel#cardDesc {{ color: {c['muted']}; font-size: 10pt; }}
+
+/* ---- תגיות (ui_kit.Pill) ---- */
+QLabel#pill {{ border-radius: 8px; padding: 3px 10px; font-size: 9pt; font-weight: 500; }}
+QLabel#pill[kind="ok"] {{ color: {c['ok']}; background: {c['ok_soft']}; }}
+QLabel#pill[kind="warn"] {{ color: {c['warn']}; background: {c['warn_soft']}; }}
+QLabel#pill[kind="danger"] {{ color: {c['danger']}; background: {c['danger_soft']}; }}
+QLabel#pill[kind="info"] {{ color: {c['accent']}; background: {c['accent_soft']}; font-weight: 600; }}
+QLabel#pill[kind="neutral"] {{ color: {c['muted']}; background: {c['surface2']}; }}
+
+/* ---- מצב ריק ושורות שם/ערך ---- */
+QLabel#emptyState {{ color: {c['muted']}; border: 1px dashed {c['border']}; border-radius: 14px;
+                    padding: 28px 20px; font-size: 10.5pt; }}
+QFrame#kvList {{ background: transparent; border: 1px solid {c['border']}; border-radius: 12px; }}
+QFrame#kvSep {{ background: {c['border']}; border: none; }}
+QLabel#kvKey {{ color: {c['muted']}; font-size: 10pt; }}
+QLabel#kvVal {{ font-size: 10.5pt; }}
+
+/* ---- כפתורים נוספים: שקוף · מסגרת אדומה · סמל בלבד ---- */
+QPushButton#btnGhost {{ background: transparent; border: none; color: {c['muted']}; padding: 7px 10px; }}
+QPushButton#btnGhost:hover {{ color: {c['text']}; background: transparent; }}
+QPushButton#btnGhost::menu-indicator {{ image: none; width: 0px; }}
+QPushButton#btnDangerOutline {{ background: transparent; color: {c['danger']}; border: 1px solid {c['danger']}; }}
+QPushButton#btnDangerOutline:hover {{ background: {c['danger_soft']}; }}
+QPushButton#iconBtn {{ padding: 0px; min-width: 38px; max-width: 38px; min-height: 38px; max-height: 38px; }}
+
+/* ---- תיבות הודעה ---- */
+QTextEdit#quietBox {{ background: transparent; border: none; color: {c['muted']}; padding: 0px; }}
+QLabel#noticeWarn {{ background: {c['warn_soft']}; border-radius: 12px; padding: 12px 14px; }}
+QLabel#noticeInfo {{ background: {c['accent_soft']}; border-radius: 12px; padding: 12px 14px; }}
+
+/* ---- סייר קבצים: נתיב שאפשר ללחוץ על כל חלק בו ---- */
+QFrame#crumbs {{ background: {c['input']}; border: 1px solid {c['border']}; border-radius: 10px; }}
+QPushButton#crumb {{ border: none; background: transparent; padding: 3px 8px; border-radius: 7px; min-height: 0px; }}
+QPushButton#crumb:hover {{ background: {c['surface2']}; }}
+QLabel#crumbSep {{ color: {c['muted']}; }}
 
 /* ---- תוויות מיוחדות (לפי objectName) ---- */
 QLabel#noteInfo {{ background: {c['accent_soft']}; border: 1px solid {c['accent']}; border-radius: 10px; padding: 10px; }}

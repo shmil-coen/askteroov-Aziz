@@ -45,6 +45,8 @@ from PySide6.QtWidgets import (
     QToolBar,
     QVBoxLayout,
     QWidget,
+    QWizard,
+    QWizardPage,
 )
 
 from ..core import config, scatter_bank
@@ -58,7 +60,6 @@ from ..core.gpt_parser import (
 from ..core.jobs import (
     Job,
     job_manager,
-    plan_backup_nvram,
     plan_fastboot_erase,
     plan_fastboot_flash,
     plan_fastboot_simple,
@@ -75,6 +76,7 @@ from ..core.fastboot_bridge import (
     summarize_fastboot,
 )
 from ..core.mtk_bridge import MtkCommands
+from ..core import root_pipeline, root_audit, magisk_patch
 from ..core.port_monitor import PortMonitor, is_preloader_port, scan_ports
 from ..core.safety import get_partition_warning
 from ..core.scatter import (
@@ -101,6 +103,21 @@ _NO = QMessageBox.StandardButton.No
 
 # טולטיפי עזרה (מוצמדים לסמן 💡) — מה הפעולה עושה, למה היא משמשת ומה ההשלכות
 _ACTION_HELP = {
+    "root_brom": ("רוטינג אוטומטי — BROM בלבד",
+                  "מה זה עושה: מבצע רוטינג (Magisk) אוטומטי מקצה לקצה דרך mtkclient/BROM "
+                  "בלבד — בלי מצב מפתחים, בלי ADB, בלי בוטלואדר Fastboot. שואב את "
+                  "boot/init_boot מהמכשיר עצמו, מפעיל עליו Magisk בצד המחשב, וצורב בחזרה.\n"
+                  "למה זה משמש: המסלול המהיר והבטוח ביותר — עובד גם על מכשירים כבויים/"
+                  "תקועים, כל עוד יש session תקין מול ה-DA.\n"
+                  "השלכות: כתיבה למכשיר (שלב 2 בלבד) — לכל שלב יש אישור נפרד, וגיבוי "
+                  "אוטומטי נשמר לפני כתיבה. Unlock (אם מסומן) מוחק את כל נתוני המשתמש."),
+    "root_fastboot": ("רוטינג אוטומטי — עם Fastboot",
+                      "מה זה עושה: כמו 'BROM בלבד', אך כאשר BROM לא מסוגל לכתוב (הגנת "
+                      "seccfg) — עובר ל-Fastboot רק לשתי הפעולות החסומות: Unlock ו-Write. "
+                      "כל השאר (זיהוי, שאיבה, פאץ', אימות) עדיין דרך BROM.\n"
+                      "למה זה משמש: למכשירים שבהם BROM לבד לא מספיק.\n"
+                      "השלכות: דורש בוטלואדר הניתן לפתיחה (OEM Unlocking דלוק בהגדרות "
+                      "מפתחים) ואישור פיזי בכפתורי עוצמת קול על המכשיר. Unlock מוחק נתונים."),
     "gpt": ("קריאת GPT\u200f (printgpt)\u200f",
             "מה זה עושה: קורא את טבלת המחיצות מהמכשיר דרך mtkclient.\n"
             "למה זה משמש: רואים את כל המחיצות (שמות וגדלים), מזהה אוטומטית את שם המעבד, "
@@ -277,6 +294,165 @@ class _MainTabBar(QTabBar):
             else:
                 p.setFont(base_font)
             p.drawControl(QStyle.ControlElement.CE_TabBarTab, opt)
+
+
+
+# ---------------------------------------------------------------------- אשף הגדרות רוטינג אוטומטי
+#
+# יותר מדי אפשרויות לדיאלוג אחד — פוצל לשלבים (QWizard): כל מסך שואל דבר
+# אחד, עם הסבר קצר, וברירת מחדל בטוחה. סיכום מלא בסוף לפני שמתחילים בפועל.
+
+
+class _MagiskVersionPage(QWizardPage):
+    def __init__(self, apks, parent=None):
+        super().__init__(parent)
+        self.setTitle("שלב 1 — גרסת Magisk")
+        self.setSubTitle("איזו גרסת Magisk תשמש לפאץ' ה-boot/init_boot?")
+        v = QVBoxLayout(self)
+        self.combo = QComboBox()
+        for p in apks:
+            self.combo.addItem(p.name, p)
+        v.addWidget(self.combo)
+        note = QLabel("ברירת מחדל מומלצת: הגרסה העדכנית ביותר (הראשונה ברשימה). גרסה "
+                     "ישנה יותר משמשת רק אם יש סיבה ספציפית להעדיף אותה על פני העדכנית.")
+        note.setWordWrap(True)
+        v.addWidget(note)
+        v.addStretch(1)
+
+
+class _AbiPage(QWizardPage):
+    def __init__(self, guess, cpu_hint: str = "", parent=None):
+        super().__init__(parent)
+        self._cpu_hint = cpu_hint
+        self.setTitle("שלב 2 — ארכיטקטורת מעבד (ABI)")
+        self.setSubTitle("צריך לדעת אם המכשיר 64-bit או 32-bit כדי לבחור את הבינארי הנכון.")
+        v = QVBoxLayout(self)
+
+        self.combo = QComboBox()
+        self.combo.addItem("64-bit (ARM64) — רוב המכשירים מ-2017 ואילך", "arm64-v8a")
+        self.combo.addItem("32-bit בלבד (שבבים ישנים: MT6580/MT6570/MT6572/...)", "armeabi-v7a")
+        self.combo.setCurrentIndex(0 if guess.is64bit_guess else 1)
+        v.addWidget(self.combo)
+
+        self.guess_label = QLabel(f"הצעה לפי השבב שזוהה: {guess.reason}" +
+                                  ("" if guess.confident else " — לא ודאי, מומלץ לבדוק."))
+        self.guess_label.setWordWrap(True)
+        v.addWidget(self.guess_label)
+
+        b_adb = QPushButton("🔍 בדוק אוטומטית (אם הטלפון דלוק ומחובר ב-ADB)")
+        b_adb.clicked.connect(self._check_via_adb)
+        v.addWidget(b_adb)
+
+        self.status_label = QLabel("")
+        self.status_label.setWordWrap(True)
+        v.addWidget(self.status_label)
+
+        how = QLabel(
+            "איך לדעת בעצמך: אם הטלפון דלוק — הגדרות ← אודות הטלפון ← מידע תוכנה, או "
+            "פשוט לחפש בגוגל את שם/דגם הטלפון עם \"64 bit or 32 bit\". ככלל אצבע: שבבי "
+            "MediaTek ישנים מאוד (2013–2016, לרוב MT65xx כמו MT6580/MT6572) הם 32-bit "
+            "בלבד; כל שבב מ-2017 ואילך (Helio, Dimensity, וכל MT67xx/68xx/69xx) הוא 64-bit.")
+        how.setWordWrap(True)
+        v.addWidget(how)
+        v.addStretch(1)
+
+    def _check_via_adb(self):
+        exe = config.find_adb_exe()
+        if exe is None:
+            self.status_label.setText("⚠️ adb.exe לא נמצא בתוך התוכנה.")
+            return
+        abi = devinfo.read_adb_abi(str(exe)).strip().lower()
+        if not abi:
+            self.status_label.setText(
+                "⚠️ לא נמצא מכשיר ב-ADB. ודא שהטלפון דלוק, ניפוי USB מופעל, "
+                "ושאישרת את חלון ההרשאה על המסך.")
+            return
+        if abi in ("arm64-v8a", "x86_64"):
+            self.combo.setCurrentIndex(0)
+            self.status_label.setText(f"✅ זוהה בהצלחה דרך ADB: {abi} (64-bit)")
+        elif abi in ("armeabi-v7a", "armeabi", "x86"):
+            self.combo.setCurrentIndex(1)
+            self.status_label.setText(f"✅ זוהה בהצלחה דרך ADB: {abi} (32-bit)")
+        else:
+            self.status_label.setText(f"⚠️ התקבל ערך לא מוכר: '{abi}' — נא לבחור ידנית.")
+
+
+class _AdvancedPage(QWizardPage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("שלב 3 — אפשרויות מתקדמות")
+        self.setSubTitle("ברירת המחדל (הכל לא מסומן) מתאימה כמעט תמיד.")
+        v = QVBoxLayout(self)
+        self.keep_verity = QCheckBox("שמור dm-verity (KEEPVERITY)")
+        self.keep_fe = QCheckBox("שמור הצפנה כפויה (KEEPFORCEENCRYPT)")
+        self.legacy_sar = QCheckBox("מכשיר Legacy SAR (רק אם הפאץ' הרגיל לא עולה)")
+        for cb in (self.keep_verity, self.keep_fe, self.legacy_sar):
+            v.addWidget(cb)
+        v.addStretch(1)
+
+
+class _UnlockPage(QWizardPage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("שלב 4 — Unlock (seccfg)")
+        self.setSubTitle("אופציונלי — רק אם BROM לא יצליח לכתוב בלי זה.")
+        v = QVBoxLayout(self)
+        warn = QLabel("⚠️ פתיחת בוטלואדר (Unlock) מוחקת את כל נתוני המשתמש במכשיר!")
+        warn.setWordWrap(True)
+        v.addWidget(warn)
+        self.unlock_cb = QCheckBox("גם לבצע Unlock (seccfg) לפני הכתיבה, אם צריך")
+        v.addWidget(self.unlock_cb)
+        v.addStretch(1)
+
+
+class _SummaryPage(QWizardPage):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle("סיכום — לפני התחלה")
+        self.setSubTitle("בדוק את הבחירות ולחץ 'סיום' כדי להתחיל בשלב 1 (ניתוח, לא מסוכן).")
+        v = QVBoxLayout(self)
+        self.label = QLabel()
+        self.label.setWordWrap(True)
+        v.addWidget(self.label)
+        v.addStretch(1)
+
+    def initializePage(self):
+        wiz = self.wizard()
+        lines = [
+            f"גרסת Magisk: {wiz.magisk_page.combo.currentText()}",
+            f"ארכיטקטורת מעבד: {wiz.abi_page.combo.currentText()}",
+            f"שמור dm-verity: {'כן' if wiz.adv_page.keep_verity.isChecked() else 'לא'}",
+            f"שמור הצפנה כפויה: {'כן' if wiz.adv_page.keep_fe.isChecked() else 'לא'}",
+            f"מכשיר Legacy SAR: {'כן' if wiz.adv_page.legacy_sar.isChecked() else 'לא'}",
+        ]
+        if wiz.unlock_page is not None:
+            lines.append(f"גם Unlock (seccfg): "
+                        f"{'כן — מוחק נתונים!' if wiz.unlock_page.unlock_cb.isChecked() else 'לא'}")
+        self.label.setText("\n".join(lines))
+
+
+class _DevRootWizard(QWizard):
+    def __init__(self, apks, guess, cpu_hint: str, use_fastboot: bool, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("הגדרות רוטינג אוטומטי" + (" — Fastboot" if use_fastboot else " — BROM"))
+        self.setWizardStyle(QWizard.WizardStyle.ClassicStyle)
+        self.magisk_page = _MagiskVersionPage(apks)
+        self.abi_page = _AbiPage(guess, cpu_hint)
+        self.adv_page = _AdvancedPage()
+        self.unlock_page = None
+        self.addPage(self.magisk_page)
+        self.addPage(self.abi_page)
+        self.addPage(self.adv_page)
+        if not use_fastboot:
+            self.unlock_page = _UnlockPage()
+            self.addPage(self.unlock_page)
+        self.summary_page = _SummaryPage()
+        self.addPage(self.summary_page)
+        self.setButtonText(QWizard.WizardButton.NextButton, "הבא")
+        self.setButtonText(QWizard.WizardButton.BackButton, "הקודם")
+        self.setButtonText(QWizard.WizardButton.CancelButton, "ביטול")
+        self.setButtonText(QWizard.WizardButton.FinishButton, "🔥 סיום — התחל ניתוח")
+        self.resize(520, 380)
 
 
 def _log_bidi(text: str) -> str:
@@ -496,6 +672,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.fastboot_tab, "⚡ Fastboot")
         self.boot_tab = self._scrollable(self._tab_bootloader())
         self.tabs.addTab(self.boot_tab, "🔓 Bootloader")
+        self.dev_tab = self._scrollable(self._tab_dev_features())
+        self.tabs.addTab(self.dev_tab, "✨ בפיתוח")
         # לוג — אחרונה משמאל, בקצה השורה (לבקשת המשתמש)
         self.logs_tab = self._tab_logs()
         self.tabs.addTab(self.logs_tab, "📜 לוג")
@@ -1305,18 +1483,6 @@ class MainWindow(QMainWindow):
                 btns.addWidget(self._help_dot(hk))
         gv.addLayout(btns)
         v.addWidget(gb)
-
-        # גיבוי NVRAM/NVDATA — הועבר לכאן מלשונית תחזוקת התקשורת (שהוסרה)
-        gb_nv = QGroupBox("גיבוי NVRAM / NVDATA (IMEI, MAC, כיול)")
-        nv = QHBoxLayout(gb_nv)
-        b_nv = QPushButton(" גבה NVRAM + NVDATA")
-        b_nv.setObjectName("btnSoft")
-        b_nv.setIcon(self.icon_read)
-        b_nv.clicked.connect(self._backup_nvram)
-        nv.addWidget(b_nv)
-        nv.addWidget(self._help_dot("readback"))
-        nv.addStretch(1)
-        v.addWidget(gb_nv)
         return w
 
     def _fill_partition_table(self, table: GptTable):
@@ -1465,6 +1631,164 @@ class MainWindow(QMainWindow):
         v.addWidget(gb2)
         v.addStretch(1)
         return w
+
+    # ------------------------------------------------------------ לשונית בפיתוח (רוטינג אוטומטי)
+    def _tab_dev_features(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        warn = QLabel(
+            "⚠️ תכונה ניסיונית בפיתוח. כל שלב מוצג לאישור מפורש לפני שהוא רץ, וגיבוי "
+            "אוטומטי נשמר לפני כל כתיבה — אך המסלול טרם נבדק על מכשיר אמיתי. מומלץ "
+            "להתחיל במכשיר לא-קריטי.")
+        warn.setWordWrap(True)
+        v.addWidget(warn)
+
+        gb1 = QGroupBox("ארכיטקטורה 1 — רוטינג אוטומטי, BROM בלבד (בלי מצב מפתחים)")
+        g1 = QVBoxLayout(gb1)
+        l1 = QLabel("מסלול מלא דרך mtkclient/BROM בלבד: זיהוי ← שאיבה ← פאץ' Magisk "
+                   "בצד המחשב ← צריבה חזרה. לא דורש ADB/מצב מפתחים כלל.")
+        l1.setWordWrap(True)
+        g1.addWidget(l1)
+        row1 = QHBoxLayout()
+        b1 = QPushButton("🧪 התחל רוטינג אוטומטי (BROM)")
+        b1.clicked.connect(lambda: self._dev_start_architecture(False))
+        row1.addWidget(b1)
+        row1.addWidget(self._help_dot("root_brom"))
+        row1.addStretch(1)
+        g1.addLayout(row1)
+        v.addWidget(gb1)
+
+        gb2 = QGroupBox("ארכיטקטורה 2 — עם Fastboot (למכשירים שבהם BROM לא מסוגל לכתוב)")
+        g2 = QVBoxLayout(gb2)
+        l2 = QLabel("זהה לחלוטין לארכיטקטורה 1 בזיהוי/שאיבה/פאץ' — אך Unlock ו-Write "
+                   "עוברים ל-Fastboot כשל-BROM אין הרשאת כתיבה (seccfg). דורש אישור פיזי "
+                   "בכפתורי עוצמת קול על המכשיר, ו-OEM Unlocking דלוק במצב מפתחים.")
+        l2.setWordWrap(True)
+        g2.addWidget(l2)
+        row2 = QHBoxLayout()
+        b2 = QPushButton("🧪 התחל רוטינג אוטומטי (עם Fastboot)")
+        b2.clicked.connect(lambda: self._dev_start_architecture(True))
+        row2.addWidget(b2)
+        row2.addWidget(self._help_dot("root_fastboot"))
+        row2.addStretch(1)
+        g2.addLayout(row2)
+        v.addWidget(gb2)
+
+        v.addStretch(1)
+        return w
+
+    def _dev_scan_magisk_apks(self):
+        d = config.PROJECT_ROOT / "tools" / "Magisk"
+        return sorted(d.glob("Magisk-v*.apk"), reverse=True)
+
+    def _dev_config_dialog(self, use_fastboot: bool):
+        """אשף (QWizard) בשלבים: גרסת Magisk -> ABI -> מתקדם -> [Unlock] -> סיכום.
+        מחזיר dict של הבחירות, או None בביטול."""
+        apks = self._dev_scan_magisk_apks()
+        if not apks:
+            QMessageBox.critical(self, "אין קובצי Magisk",
+                                 "לא נמצאו קובצי Magisk-vX.apk בתוך tools\\Magisk.")
+            return None
+        guessed_cpu = getattr(self.gpt, "cpu", "") if self.gpt else ""
+        guess = magisk_patch.guess_abi(guessed_cpu)
+        wiz = _DevRootWizard(apks, guess, guessed_cpu, use_fastboot, self)
+        if wiz.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return {
+            "magisk_apk": wiz.magisk_page.combo.currentData(),
+            "abi": wiz.abi_page.combo.currentData(),
+            "keep_verity": wiz.adv_page.keep_verity.isChecked(),
+            "keep_forceencrypt": wiz.adv_page.keep_fe.isChecked(),
+            "legacy_sar": wiz.adv_page.legacy_sar.isChecked(),
+            "do_seccfg_unlock": wiz.unlock_page.unlock_cb.isChecked() if wiz.unlock_page else False,
+        }
+
+    def _dev_start_architecture(self, use_fastboot: bool):
+        if job_manager.busy:
+            QMessageBox.warning(self, "עסוק", "יש פעולה פעילה — המתן לסיומה.")
+            return
+        cfg = self._dev_config_dialog(use_fastboot)
+        if cfg is None:
+            return
+        state = root_pipeline.PipelineState(
+            magisk_apk=cfg["magisk_apk"], magiskboot_abi=cfg["abi"],
+            do_seccfg_unlock=cfg["do_seccfg_unlock"], keep_verity=cfg["keep_verity"],
+            keep_forceencrypt=cfg["keep_forceencrypt"], legacy_sar=cfg["legacy_sar"])
+        state.job_dir = root_audit.new_job_dir()
+        self._dev_submit_job1(state, use_fastboot)
+
+    def _dev_submit_job1(self, state, use_fastboot: bool):
+        def _build():
+            job = root_pipeline.build_job1_analyze(state)
+            job.on_done = lambda ok: bus.root_pipeline_step.emit(
+                {"stage": "job1", "ok": ok, "state": state, "use_fastboot": use_fastboot})
+            return job
+        self._request(self._plan(_build))
+
+    def _dev_submit_job1b(self, state, use_fastboot: bool):
+        def _build():
+            job = root_pipeline.build_job1b_preflight(state)
+            job.on_done = lambda ok: bus.root_pipeline_step.emit(
+                {"stage": "job1b", "ok": ok, "state": state, "use_fastboot": use_fastboot})
+            return job
+        self._request(self._plan(_build))
+
+    def _dev_submit_job2(self, state, use_fastboot: bool):
+        def _build():
+            builder = (root_pipeline.build_job2_fastboot if use_fastboot
+                      else root_pipeline.build_job2_brom)
+            job = builder(state)
+            job.on_done = lambda ok: bus.root_pipeline_step.emit(
+                {"stage": "job2", "ok": ok, "state": state, "use_fastboot": use_fastboot})
+            return job
+        self._request(self._plan(_build))
+
+    def _on_root_pipeline_step(self, payload: dict):
+        """מנותב מ-bus.root_pipeline_step (thread-safe) — רץ ב-thread הראשי בלבד."""
+        stage = payload["stage"]
+        ok = payload["ok"]
+        state = payload["state"]
+        use_fastboot = payload["use_fastboot"]
+        if stage == "job1":
+            if not ok:
+                QMessageBox.critical(self, "שלב 1 נכשל",
+                                     "הניתוח/הפאץ' נכשלו — לא נכתב כלום למכשיר. "
+                                     "פרטים בלשונית הלוג.")
+                return
+            self._dev_submit_job1b(state, use_fastboot)
+        elif stage == "job1b":
+            if not ok:
+                QMessageBox.critical(self, "Preflight נכשל",
+                                     "האימות לפני הכתיבה נכשל — הפעולה נעצרה ולא נכתב "
+                                     "כלום למכשיר. פרטים בלשונית הלוג.")
+                return
+            report_text = state.preflight_report.as_text() if state.preflight_report else ""
+            summary = (f"מחיצת יעד: {state.target_partition}\n"
+                      f"Slot: {state.slot_detail}\n"
+                      f"vbmeta עצמאי: {'כן' if state.has_vbmeta else 'לא'}\n\n"
+                      f"Preflight:\n{report_text}")
+            box = QMessageBox(self)
+            box.setWindowTitle("תוצאות שלב 1 — לפני כתיבה סופית")
+            box.setIcon(QMessageBox.Icon.Information)
+            box.setText("הניתוח הושלם. לבדוק ולהמשיך לכתיבה הסופית?")
+            box.setInformativeText(summary)
+            box.setStandardButtons(QMessageBox.StandardButton.Yes
+                                   | QMessageBox.StandardButton.Cancel)
+            box.button(QMessageBox.StandardButton.Yes).setText("🔥 המשך לכתיבה הסופית")
+            box.button(QMessageBox.StandardButton.Cancel).setText("ביטול")
+            box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+            if box.exec() == QMessageBox.StandardButton.Yes:
+                self._dev_submit_job2(state, use_fastboot)
+        elif stage == "job2":
+            if ok:
+                QMessageBox.information(self, "רוטינג הושלם",
+                                        "הכתיבה אומתה בהצלחה (SHA256 תואם).\n"
+                                        f"תיעוד מלא נשמר ב:\n{state.job_dir}")
+            else:
+                QMessageBox.critical(self, "הכתיבה נכשלה",
+                                     "הכתיבה/האימות נכשלו — פרטים בלשונית הלוג.\n"
+                                     f"גיבוי המקור נשמר ב:\n{state.job_dir / 'backups'}")
+
 
     # ------------------------------------------------------------ לשונית Fastboot
     def _tab_fastboot(self) -> QWidget:
@@ -1969,6 +2293,7 @@ class MainWindow(QMainWindow):
         bus.reconnect_hint.connect(self._on_reconnect_hint)
         bus.driver_fix_result.connect(self._on_driver_fix_result)
         bus.pyinstall_done.connect(self._on_pyinstall_done)
+        bus.root_pipeline_step.connect(self._on_root_pipeline_step)
         # מקורות רקע → אותות Qt (thread-safe)
         log.subscribe(lambda level, msg: bus.log_line.emit(level, msg))
         job_manager.on_progress = lambda pct, s: bus.progress.emit(float(pct), s)
@@ -2052,14 +2377,6 @@ class MainWindow(QMainWindow):
             return ("הקובץ נצרב למחיצה בהצלחה (לפני כן נעשה גיבוי אוטומטי למחיצה הקודמת).\n\n"
                     "שימושים: החלפת תמונת מערכת/ריקברי/בוט וכדומה. אם המכשיר לא עולה "
                     "אחרי הצריבה — שחזר את הגיבוי מ-workspace\\backups.")
-        if "NVRAM" in n or "nvram" in n:
-            dest = self._last_job_dest()
-            dest_line = (f"\n\nהגיבוי נשמר ב:\n{dest}\n"
-                         "העתק את התיקייה גם למקום אחר (לא רק במחשב הזה)!") if dest else ""
-            return ("ה-NVRAM וה-NVDATA גובו — שם נמצאים ה-IMEI, כתובות ה-MAC והכיול."
-                    + dest_line + "\n\n"
-                    "שימושים: שחזור IMEI/MAC במקרה של נזק למחיצות אלה "
-                    "(דרך לשונית צריבה). שמור על הקבצים במקום בטוח!")
         if "Factory Reset" in n or "מחיקת" in n:
             return ("המחיצות שנבחרו נמחקו. Factory Reset מוחק את כל נתוני המשתמש.\n\n"
                     "שימושים: איפוס לפני מכירה, פתרון בעיות תוכנה, או ניקוי מלא של המכשיר.")
@@ -4461,11 +4778,6 @@ class MainWindow(QMainWindow):
                 job.notes.append("הפעולה נועלת את ה-Bootloader\u200f (seccfg)\u200f.")
             return job
         self._request(self._plan(build))
-
-    # ------------------------------------------------------------ גיבוי NVRAM (הועבר מתחזוקת תקשורת)
-    def _backup_nvram(self):
-        self._retry_action = self._backup_nvram
-        self._request(self._plan(plan_backup_nvram))
 
     # ------------------------------------------------------------ לוגים
     def _export_log(self):

@@ -25,7 +25,8 @@ def settings() -> QSettings:
 
 
 def load_dark() -> bool:
-    return str(settings().value("dark_theme", "false")).lower() in ("true", "1")
+    # ברירת מחדל: הערכה הכהה (🌙). בחירה שהמשתמש שמר בתפריט ההגדרות — נשמרת
+    return str(settings().value("dark_theme", "true")).lower() in ("true", "1")
 
 
 def save_dark(dark: bool) -> None:

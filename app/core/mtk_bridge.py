@@ -364,3 +364,10 @@ class MtkCommands:
         flag = flag.lower()
         assert flag in ("unlock", "lock")
         return MtkCommand(["da", "seccfg", flag] + cls._common_args(**kw))
+
+    # ------------------------------ reset/reboot
+    @classmethod
+    def reset(cls, **kw) -> MtkCommand:
+        """שולח פקודת reset ל-mtk (מאתחל את המכשיר מחוץ ל-BROM)."""
+        return MtkCommand(["reset"] + cls._common_args(noreconnect=False, **kw))
+

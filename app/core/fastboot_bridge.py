@@ -240,6 +240,38 @@ class FastbootCommands:
         # target: "" (מערכת), "bootloader", "recovery"
         return FastbootCommand(["reboot"] + ([target] if target else []))
 
+    # ------------------------------ ארכיטקטורה 2: Unlock מלא + כתיבה עם דגלים
+
+    @classmethod
+    def get_unlock_ability(cls) -> FastbootCommand:
+        """fastboot flashing get_unlock_ability — בדיקה לפני כל ניסיון unlock."""
+        return FastbootCommand(["flashing", "get_unlock_ability"])
+
+    @classmethod
+    def flashing_unlock(cls) -> FastbootCommand:
+        """
+        fastboot flashing unlock — דורש אישור פיזי בכפתורי עוצמת קול על מסך
+        המכשיר; לא ניתן לעקוף מה-PC בכוונה (הגנת אנטי-גניבה). ה-timeout
+        הארוך של FastbootCommand (DEVICE_TIMEOUT/reconnect) מכסה את ההמתנה.
+        """
+        return FastbootCommand(["flashing", "unlock"])
+
+    @classmethod
+    def is_userspace(cls) -> FastbootCommand:
+        """fastboot getvar is-userspace — 'no' = בוטלאודר אמיתי, 'yes' = fastbootd (שגוי)."""
+        return FastbootCommand(["getvar", "is-userspace"])
+
+    @classmethod
+    def flash_disable_verity(cls, partition: str, image: "Path") -> FastbootCommand:
+        """
+        fastboot --disable-verity --disable-verification flash <partition> <image>.
+        לפי fastboot.cpp הרשמי: אלו נכנסים לתוקף בפועל רק כשהמחיצה הנצרבת היא
+        vbmeta/vbmeta_a/vbmeta_b, או (נפילה) אין מחיצת vbmeta עצמאית כלל
+        והמחיצה הנצרבת היא boot/boot_a/boot_b. ראו avb.has_vbmeta_partition().
+        """
+        return FastbootCommand(["--disable-verity", "--disable-verification",
+                               "flash", partition, str(image)])
+
 
 # ---------------------------------------------------------------------- ניתוח getvar
 

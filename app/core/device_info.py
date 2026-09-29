@@ -76,6 +76,13 @@ def _run(cmd: list[str], timeout: float = 8.0) -> str:
 
 # ---------------------------------------------------------------------- ADB
 
+def read_adb_abi(adb: str) -> str:
+    """קורא ro.product.cpu.abi ישירות (לבחירת ABI לפאץ' Magisk) — ריק אם אין מכשיר ADB."""
+    if not adb_devices_connected(adb):
+        return ""
+    return _run([adb, "shell", "getprop", "ro.product.cpu.abi"], timeout=6).strip()
+
+
 def adb_devices_connected(adb: str) -> bool:
     out = _run([adb, "devices"], timeout=8)
     for line in out.splitlines()[1:]:

@@ -349,21 +349,6 @@ def plan_erase_partitions(partitions: list[str], title: str = "מחיקת מחי
     return Job(title, steps, on_done=on_done, danger=True)
 
 
-def plan_backup_nvram(on_done: Optional[Callable[[bool], None]] = None, **kw) -> Job:
-    """גיבוי NVRAM + NVDATA לתיקייה משותפת תחת backups."""
-    out_dir = BACKUPS_DIR / f"nvram_backup_{_stamp()}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    steps = []
-    for p in ("nvram", "nvdata"):
-        path = out_dir / f"{p}.img"
-        steps.append(Step(f"גיבוי {p}", MtkCommands.read_partition(p, path, **kw),
-                          _checksum_after(path, f"גיבוי {p}")))
-    job = Job("גיבוי NVRAM + NVDATA", steps, on_done=on_done, retries=2)
-    job.notes.append(f"יעד: {out_dir}")
-    job.notes.append("אם שלב נכשל — ינוסה שוב אוטומטית (עד 3 פעמים).")
-    return job
-
-
 
 # ---------------------------------------------------------------------- Fastboot
 

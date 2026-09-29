@@ -330,7 +330,10 @@ class Card(QFrame):
         self.desc = QLabel(desc)
         self.desc.setObjectName("cardDesc")
         self.desc.setWordWrap(True)
-        self.desc.setVisible(bool(desc))
+        if not desc:
+            # הסתרה בלבד — "הצגה" של התווית לפני שהיא בתוך הכרטיס פותחת אותה לרגע
+            # כחלון נפרד (ריצוד בשורת המשימות ובראש המסך בזמן פתיחת התוכנה)
+            self.desc.hide()
         col.addWidget(self.desc)
         head.addLayout(col, 1)
         if pill is not None:

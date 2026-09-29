@@ -218,7 +218,7 @@ class _ToggleSwitch(QAbstractButton):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         on = self.isChecked()
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(QColor("#2f81f7") if on else QColor("#7f8a95")))
+        p.setBrush(QBrush(QColor(theme.colors()["btn"]) if on else QColor(theme.colors()["border"])))
         radius = self._h / 2.0
         p.drawRoundedRect(QRectF(0, 0, self._w, self._h), radius, radius)
         d = self._h - 4          # קוטר העיגול (המחוון)
@@ -503,9 +503,9 @@ class MainWindow(QMainWindow):
         self._last_probe_mode = None        # מצב הזיהוי הקודם (להודעות מעבר)
         self._gpt_timer = None              # טיימר איתור ניסיון GPT שנתקע (75 שניות)
         self._gpt_timeout_dialog = None     # דיאלוג "המכשיר לא זוהה" פתוח?
-        # סמלי השאיבה/הצריבה — מצוירים מקומית (ירוק, בדיוק לפי הדגמים שנקבעו)
-        self.icon_read = guiicons.curved_left_arrow_icon()
-        self.icon_flash = guiicons.down_arrow_icon()
+        # סמלי השאיבה/הצריבה — מצוירים מקומית, בצבע ההדגשה של הערכה (מתעדכנים בהחלפת ערכה)
+        self.icon_read = guiicons.curved_left_arrow_icon(color=theme.colors()["accent"])
+        self.icon_flash = guiicons.down_arrow_icon(color=theme.colors()["accent"])
         self._brom_suggest_open = False     # דיאלוג הצעת GPT פתוח?
         self.port_monitor = PortMonitor()
         self.port_monitor.on_change = self._on_ports_changed
@@ -628,15 +628,16 @@ class MainWindow(QMainWindow):
         tb.addWidget(tb_spacer)
         # הגדרות — סמל בלבד (בלי המילה "הגדרות"): גרסה · אודות · סדר לשוניות גמיש.
         # ממוקם בתוספת לפני כפתורי העיצוב, כך שהם נשארים בקצה השמאלי בדיוק כמו היום.
-        self.settings_action = QAction(guiicons.gear_icon(), "", self)
+        self.settings_action = QAction(guiicons.gear_icon(color=theme.colors()["muted"]), "", self)
         self.settings_action.setToolTip(f"הגדרות – גרסה v{config.APP_VERSION} · אודות · עיצוב")
         self.settings_action.triggered.connect(self._open_settings_menu)
         tb.addAction(self.settings_action)
         # עיצוב בהיר/כהה — לא בפס העליון: נכנס לתפריט ההגדרות (מתחת למתג הסדר).
         self.theme_group = QActionGroup(self)
         self.theme_group.setExclusive(True)
-        self.light_action = QAction("🔵 כחול עמוק", self)
-        self.dark_action = QAction("🌙 כהה", self)
+        # שמות הערכות — מ-theme.PALETTES (True = גרפיט רך, ברירת המחדל; False = כחול לילה)
+        self.light_action = QAction(theme.PALETTES[False]["name"], self)
+        self.dark_action = QAction(theme.PALETTES[True]["name"], self)
         for act, is_dark in ((self.light_action, False), (self.dark_action, True)):
             act.setCheckable(True)
             act.setChecked(self.dark == is_dark)
@@ -662,6 +663,7 @@ class MainWindow(QMainWindow):
         fl_tab = self._scrollable(self._tab_flash())
         self.tabs.addTab(fl_tab, " צריבה (Download)")
         self.tabs.setTabIcon(self.tabs.indexOf(fl_tab), self.icon_flash)
+        self._rb_tab, self._fl_tab = rb_tab, fl_tab   # לעדכון צבע הסמלים בהחלפת ערכה
         # Scatter — רביעי מימין, צמוד לצריבה (לבקשת המשתמש)
         self.scatter_tab = self._scrollable(self._tab_scatter())
         self.tabs.addTab(self.scatter_tab, "📄 Scatter")
@@ -782,7 +784,7 @@ class MainWindow(QMainWindow):
             # min-width הוא רוחב התוכן בלבד — הריווח (10px מכל צד) והמסגרת נוספים
             # עליו. לכן מורידים אותם מהחישוב, אחרת סך הלשוניות רחב מהחלון,
             # החלון גדל, והחישוב רץ שוב — לולאת התנפחות.
-            _PAD = 2 * 10 + 4
+            _PAD = 2 * 10 + 4 + 2 * 2   # ריווח פנימי + מסגרת + שוליים בין הלשוניות (theme.py)
             w = max(40, (self.tabs.width() - 14) // n - _PAD)
             if w == getattr(self, "_last_tab_w", None):
                 return   # אין שינוי — לא מחילים שוב (מונע לולאה)
@@ -842,7 +844,8 @@ class MainWindow(QMainWindow):
         head_row = QHBoxLayout()
         head_row.setSpacing(8)
         head_icon = QLabel()
-        head_icon.setPixmap(guiicons.round_info_pixmap(round(small.pointSizeF() * 1.35)))
+        head_icon.setPixmap(guiicons.round_info_pixmap(round(small.pointSizeF() * 1.35),
+                                                       color=theme.colors()["accent"]))
         head_text = QLabel("אודות")
         head_text.setFont(small)   # אותו גופן כמו שאר המילים בתפריט — לא מודגש
         head_row.addWidget(head_icon)
@@ -879,8 +882,8 @@ class MainWindow(QMainWindow):
         m.addAction(act)
         # בחירת העיצוב — עברה מהפס העליון לכאן, מתחת למתג הסדר (לבקשת המשתמש)
         m.addSeparator()
-        m.addAction(self.light_action)
-        m.addAction(self.dark_action)
+        m.addAction(self.dark_action)    # גרפיט רך — ברירת המחדל, ראשון
+        m.addAction(self.light_action)   # כחול לילה
         m.exec(self.toolbar.mapToGlobal(self.toolbar.rect().bottomLeft()))
 
     def _about_text(self) -> str:
@@ -967,10 +970,34 @@ class MainWindow(QMainWindow):
         theme.save_dark(on)
         theme.apply_theme(on)
         self._recolor_tables()
-        self._say("info", "עיצוב כהה הופעל" if on else "עיצוב כחול עמוק הופעל")
+        self._refresh_button_icons()
+        self._say("info", f"עיצוב {theme.PALETTES[on]['name']} הופעל")
 
         self._mtk_color = theme.mtk_color
         self._warn_color = theme.warn_color
+
+    def _refresh_button_icons(self):
+        """כל הסמלים המצוירים — בצבעי הערכה הפעילה (נקרא בהחלפת ערכה).
+
+        על כפתור צבעוני: בצבע הטקסט של הכפתור. בלשוניות ובכפתורי ההורדה: צבע ההדגשה.
+        """
+        c = theme.colors()
+        if hasattr(self, "btn_read_sel"):
+            self.btn_read_sel.setIcon(guiicons.curved_left_arrow_icon(color=c["btn_text"]))
+        if hasattr(self, "btn_flash_main"):
+            self.btn_flash_main.setIcon(guiicons.down_arrow_icon(color="#ffffff"))
+        self.icon_read = guiicons.curved_left_arrow_icon(color=c["accent"])
+        self.icon_flash = guiicons.down_arrow_icon(color=c["accent"])
+        for w, icon in ((getattr(self, "_rb_tab", None), self.icon_read),
+                        (getattr(self, "_fl_tab", None), self.icon_flash)):
+            i = self.tabs.indexOf(w) if w is not None else -1
+            if i >= 0:
+                self.tabs.setTabIcon(i, icon)   # לפי הווידג'ט — עובד גם אחרי שינוי סדר הלשוניות
+        if hasattr(self, "settings_action"):
+            self.settings_action.setIcon(guiicons.gear_icon(color=c["muted"]))
+        for b in self.findChildren(QPushButton):
+            if b.property("iconKind") == "globe":
+                b.setIcon(guiicons.globe_icon(color=c["accent"]))
 
     def _recolor_tables(self):
         self._refresh_ports()
@@ -1030,9 +1057,7 @@ class MainWindow(QMainWindow):
             "• או: חבר כשהוא כבוי; אם לא זוהה — החזק את <b>לחצן ההפעלה כ-10 שניות "
             "תוך כדי החיבור</b>, והוא יתאפס ויזוהה אוטומטית.")
         brom_help.setWordWrap(True)
-        brom_help.setStyleSheet(
-            "QLabel { border: 1px solid #2f81f7; border-radius: 6px; padding: 8px;"
-            " background-color: rgba(47,129,247,0.08); }")
+        brom_help.setObjectName("noteInfo")   # תיבת הסבר — צבעי הערכה (theme.py)
         g2.addWidget(brom_help)
         gpt_row = QHBoxLayout()
         btn_gpt = QPushButton("קרא GPT\u200f (printgpt)\u200f")
@@ -1065,7 +1090,8 @@ class MainWindow(QMainWindow):
 
         def _small_dl(tip: str, slot):
             b = QPushButton("\u2002הורדה")   # רווח (en space) בין סמל הכדור למילה
-            b.setIcon(guiicons.globe_icon())
+            b.setIcon(guiicons.globe_icon(color=theme.colors()["accent"]))
+            b.setProperty("iconKind", "globe")   # מתעדכן בהחלפת ערכה (_refresh_button_icons)
             b.setIconSize(QSize(16, 16))
             b.setToolTip(tip)
             b.clicked.connect(slot)
@@ -1462,8 +1488,8 @@ class MainWindow(QMainWindow):
         btn_dump_gpt.setObjectName("btnSoft")
         btn_dump_gpt.clicked.connect(self._read_gpt)
         self.btn_read_sel = QPushButton(" שאב מחיצות מסומנות")
-        self.btn_read_sel.setObjectName("btnSoft")   # בקשת המשתמש: ניטרלי בגוון הרקע
-        self.btn_read_sel.setIcon(self.icon_read)
+        self.btn_read_sel.setObjectName("btnPrimary")   # הפעולה העיקרית בלשונית — בצבע ההדגשה
+        self.btn_read_sel.setIcon(guiicons.curved_left_arrow_icon(color=theme.colors()["btn_text"]))
         self.btn_read_sel.clicked.connect(self._read_checked)
         btn_read_pre = QPushButton("שאב Preloader")
         btn_read_pre.setObjectName("btnSoft")
@@ -1562,7 +1588,8 @@ class MainWindow(QMainWindow):
         flash_row = QHBoxLayout()
         btn_flash = QPushButton(" צרב")
         btn_flash.setObjectName("btnDanger")   # צריבה — כפתור אדום גדול (כמו Download ב-SP Flash)
-        btn_flash.setIcon(self.icon_flash)
+        btn_flash.setIcon(guiicons.down_arrow_icon(color="#ffffff"))   # לבן — נראה על האדום
+        self.btn_flash_main = btn_flash
         btn_flash.clicked.connect(self._flash_image)
         flash_row.addWidget(btn_flash)
         flash_row.addWidget(self._help_dot("flash"))
@@ -2066,15 +2093,16 @@ class MainWindow(QMainWindow):
                 return
             prev = files[-1]
             text = prev.read_text(encoding="utf-8", errors="replace").splitlines()
+            muted = theme.colors()["muted"]   # הלוג הקודם — באפור של הערכה
             self.log_view.append(
-                f'<p dir="rtl" style="margin:0"><span style="color:#8b949e">'
+                f'<p dir="rtl" style="margin:0"><span style="color:{muted}">'
                 f'──── לוג מהפעלה קודמת ({_log_bidi(prev.name)}) ────</span></p>')
             for line in text[-400:]:
                 safe = _log_bidi(line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
                 self.log_view.append(
-                    f'<p dir="rtl" style="margin:0"><span style="color:#8b949e">{safe}</span></p>')
+                    f'<p dir="rtl" style="margin:0"><span style="color:{muted}">{safe}</span></p>')
             self.log_view.append(
-                '<p dir="rtl" style="margin:0"><span style="color:#8b949e">'
+                f'<p dir="rtl" style="margin:0"><span style="color:{muted}">'
                 '──── סוף הלוג הקודם — פעולות חדשות מכאן ────</span></p>')
         except Exception:
             pass
@@ -2225,7 +2253,7 @@ class MainWindow(QMainWindow):
         """כמו כל כפתורי התוכנה; מסגרת אדומה בולטת רק כשפייתון חסר (להפנות אליו)."""
         if alert:
             self.btn_install_python.setStyleSheet(
-                "QPushButton { border: 3px solid #d73a49; border-radius: 6px; }")
+                f"QPushButton {{ border: 3px solid {theme.colors()['danger']}; border-radius: 10px; }}")
         else:
             self.btn_install_python.setStyleSheet("")
 
@@ -2416,7 +2444,7 @@ class MainWindow(QMainWindow):
         if ok:
             self.status_label.setText(f"{name}: הסתיים בהצלחה")
             self.progress.setValue(100)
-            self.progress.setStyleSheet("QProgressBar::chunk { background-color: #2ea043; }")
+            self.progress.setStyleSheet(theme.progress_qss("ok"))
             log.info(f"job_done (thread ראשי): {name} — לפני דיאלוג הצלחה")
             self._show_success(name)
             log.info(f"job_done: {name} — אחרי דיאלוג הצלחה")
@@ -2562,8 +2590,7 @@ class MainWindow(QMainWindow):
     def _show_cancelling(self):
         """חיווי 'מבטל…' — מד התקדמות עם מילוי אדום עדין שנע לאורך הגליל, עד סיום הביטול."""
         self.progress.setRange(0, 0)   # marquee — נע לאורך כל הגליל
-        self.progress.setStyleSheet(
-            "QProgressBar::chunk { background-color: rgba(209,52,56,0.65); }")
+        self.progress.setStyleSheet(theme.progress_qss("cancel"))
         self.status_label.setText("🛑 מבטל…")
 
     def _retry_now(self, action):
@@ -2705,29 +2732,24 @@ class MainWindow(QMainWindow):
         dlg.setWindowTitle("בחירת כלי תקשורת עם המכשיר")
         # חלון לרוחב: שלוש אופציות זו לצד זו (RTL — ADB מימין)
         dlg.resize(1000, 330)
-        # מראה בולט — כדי שהדיאלוג לא ייבלע ברקע של התוכנה (כהה ובהיר)
-        # בערכת הכחול העמוק — אותו כחול כמו התוכנה, מדורג כלפי מעלה
-        accent = "#2f81f7"                              # כחול ההדגשה — בשתי הערכות
-        bg = "#2b313a" if self.dark else "#133a66"        # אותו גוון כמו התוכנה, מעט בהיר יותר
-        banner = "#3a424d" if self.dark else "#1a4a7d"   # פס הכותרת — עוד קצת בהיר
-        card = "#30363d" if self.dark else "#16375f"
-        fg = "#e6edf3" if self.dark else "#e9f1fb"
+        # מראה בולט — כדי שהדיאלוג לא ייבלע ברקע של התוכנה. הצבעים מהערכה הפעילה (theme.py)
+        c = theme.colors()
+        accent = c["accent"]
+        bg, banner, card, fg = c["surface"], c["surface2"], c["surface2"], c["text"]
         dlg.setStyleSheet(
             f"QDialog {{ background-color: {bg}; border: 2px solid {accent}; }}"
-            f"QGroupBox {{ background-color: {card}; border: 2px solid {accent};"
-            f" border-radius: 8px; margin-top: 16px; padding: 10px 8px 8px 8px;"
-            f" font-weight: bold; color: {fg}; }}"
-            f"QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top right;"
-            f" padding: 0 8px; color: {accent}; }}"
+            f"QGroupBox {{ background-color: {card}; border: 1px solid {accent};"
+            f" border-radius: 14px; color: {fg}; }}"
+            f"QGroupBox::title {{ color: {accent}; }}"
             f"QLabel {{ color: {fg}; font-weight: normal; font-size: 10.5pt; }}")
         v = QVBoxLayout(dlg)
         intro = QLabel(
             "באיזה כלי ברצונך לדבר עם המכשיר? החיפוש אחרי המכשיר יתחיל אחרי שתבחר.")
         intro.setWordWrap(True)
         intro.setStyleSheet(
-            f"background-color: {banner}; color: {fg}; font-size: 14pt;"
+            f"background-color: {c['accent_soft']}; color: {fg}; font-size: 14pt;"
             f" font-weight: bold; padding: 14px; border: 1px solid {accent};"
-            f" border-radius: 6px;")
+            f" border-radius: 12px;")
         # "מסגרת" עדינה לאותיות — הילה כחולה סביב הטקסט
         from PySide6.QtWidgets import QGraphicsDropShadowEffect
         from PySide6.QtGui import QColor as _QColor
@@ -2748,9 +2770,7 @@ class MainWindow(QMainWindow):
             gl.addWidget(lbl)
             row = QHBoxLayout()
             b_pick = QPushButton("בחר")
-            b_pick.setStyleSheet(
-                f"background-color: {accent}; color: white; font-weight: bold;"
-                f" padding: 4px 16px; border-radius: 4px;")
+            b_pick.setObjectName("btnPrimary")   # כפתור ראשי — צבעי הערכה
             b_pick.clicked.connect(lambda _=False, t=tool: self._select_tool(t, dlg))
             b_help = QPushButton("❓ הוראות")
             b_help.clicked.connect(lambda _=False, t=tool: self._show_mode_instructions(t))
@@ -3067,7 +3087,7 @@ class MainWindow(QMainWindow):
         ga.addLayout(row_in)
         fmt_lbl = QLabel("פורמטים נתמכים: APK · XAPK · APKM · APKS "
                          "(חבילות מפוצלות מותקנות אוטומטית).")
-        fmt_lbl.setStyleSheet("color:#8b949e;")
+        fmt_lbl.setObjectName("hint")
         fmt_lbl.setWordWrap(True)
         ga.addWidget(fmt_lbl)
         row_opts = QHBoxLayout()
@@ -3141,7 +3161,7 @@ class MainWindow(QMainWindow):
             "עיון בקבצים שבמכשיר, הורדה/העלאה, מחיקה, שינוי שם ועריכת טקסט. "
             "בלי root הגישה מוגבלת ל-/sdcard.")
         fs_note.setWordWrap(True)
-        fs_note.setStyleSheet("color:#8b949e;")
+        fs_note.setObjectName("hint")
         gfs.addWidget(fs_note)
         path_row = QHBoxLayout()
         b_fs_up = QPushButton("⬆️ למעלה")
@@ -3207,7 +3227,7 @@ class MainWindow(QMainWindow):
             "מומלץ לבצע מיד אחרי איפוס לפני הוספת חשבונות.\n"
             "⚠️ הסרת הבעלות בהמשך עלולה לדרוש איפוס להגדרות יצרן.")
         adm_note.setWordWrap(True)
-        adm_note.setStyleSheet("color:#c9a227;")
+        adm_note.setObjectName("hintWarn")
         gadm.addWidget(adm_note)
         row_adm = QHBoxLayout()
         row_adm.addWidget(QLabel("שם חבילה:"))
@@ -3341,7 +3361,7 @@ class MainWindow(QMainWindow):
         it.setText(base + suffix)
         if state:
             it.setCheckState(Qt.CheckState.Unchecked)
-        color = QColor("#8b949e") if state else None
+        color = QColor(theme.colors()["muted"]) if state else None
         for c in range(t.columnCount()):
             cell = t.item(r, c)
             if cell is not None:
@@ -3357,8 +3377,7 @@ class MainWindow(QMainWindow):
         if self.progress.maximum() == 0:
             self.progress.setRange(0, 1)
         self.progress.setValue(self.progress.maximum())
-        self.progress.setStyleSheet(
-            "QProgressBar::chunk { background-color: #2ea043; }" if ok else "")
+        self.progress.setStyleSheet(theme.progress_qss("ok") if ok else "")
         self.status_label.setText(f"{title}: {'הסתיים בהצלחה' if ok else '❌ נכשל'}")
         if getattr(self, "_clear_timer", None):
             self._clear_timer.start()
@@ -4029,7 +4048,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"טוען אפליקציות… {done}/{total} ({done * 100 // total}%)")
         if done == total:
             self.status_label.setText(f"נטענו {total} אפליקציות")
-            self.progress.setStyleSheet("QProgressBar::chunk { background-color: #2ea043; }")
+            self.progress.setStyleSheet(theme.progress_qss("ok"))
             if getattr(self, "_clear_timer", None):
                 self._clear_timer.start()
 
@@ -4631,7 +4650,7 @@ class MainWindow(QMainWindow):
                        and info.battery_too_low())
             # אדום ומודגש כשהסוללה נמוכה; רגיל אחרת
             self.battery_header.setStyleSheet(
-                "color: #f85149; font-weight: bold;" if low else "")
+                f"color: {theme.colors()['danger']}; font-weight: bold;" if low else "")
             self.battery_header.setVisible(True)
             tip = self._boot_header_tooltip or self.hdr_boot.toolTip()
             self.battery_header.setToolTip(f"סוללה — {tip}" if tip else "סוללה")

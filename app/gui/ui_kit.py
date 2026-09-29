@@ -11,6 +11,8 @@
   menu_button  — כפתור עם תפריט נפתח ("התקנה והורדה ▾").
   svg_icon     — סמלים מצוירים (בדיוק כמו בדמו), בצבע שנבחר.
   ltr / breakable_path — כיווניות ושבירת שורות לטקסט באנגלית בתוך עברית.
+  Toast / ToastHost — הודעות קצרות בפינה השמאלית התחתונה (הצלחה / כשלון / מידע).
+  Modal        — חלון כמו בדמו: החלון הראשי מוחשך וכרטיס באמצע (אישור, כשלון, עצירה).
 
 הצבעים מגיעים מ-theme.py: רוב הצביעה דרך QSS לפי objectName, והסמלים המצוירים
 מתעדכנים בהחלפת ערכה דרך refresh_all().
@@ -19,12 +21,14 @@ from __future__ import annotations
 
 from typing import Callable, Iterable, Optional
 
-from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QIcon, QPainter, QPixmap
+from PySide6.QtCore import QByteArray, QElapsedTimer, QEvent, QObject, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFrame,
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -71,6 +75,7 @@ _ICONS = {
     "unlock": '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.8-1.3"/>',
     "spark": '<path d="M12 2v6M12 22v-6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M22 12h-6"/>',
     "scroll": '<path d="M8 3h9a2 2 0 0 1 2 2v12M8 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2M9 8h6M9 12h6"/>',
+    "alert": '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
 }
 _FILLED = {"folder_fill": "folder"}   # גרסה מלאה (ממולאת) של סמל
 
@@ -108,6 +113,14 @@ def ltr(text: str) -> str:
     if not text or any("\u0590" <= ch <= "\u05ff" for ch in text):
         return text
     return "\u2066" + text + "\u2069"
+
+
+_RLM = "\u200f"   # סימן כיוון מימין לשמאל (בלתי נראה)
+
+
+def rtl(text: str) -> str:
+    """פסקה מימין לשמאל גם כשהטקסט מתחיל באנגלית (למשל "Fastboot: זיהוי מכשיר")."""
+    return _RLM + text if text else text
 
 
 _ZWSP = "\u200b"   # רווח ברוחב אפס — נקודת שבירה בלתי נראית
@@ -490,3 +503,328 @@ def refresh_all(root: QWidget):
             w.setPixmap(svg_pixmap("info", c["muted"], 18))
         elif isinstance(w, StatusBox):
             w.refresh_theme()
+
+
+# ---------------------------------------------------------------------- הודעות בצד
+class Toast(QFrame):
+    """הודעה קצרה בפינה (כמו בדמו): נקודה צבעונית · טקסט · כפתורי פעולה · ✕.
+
+    kind = ok (הצלחה) · err (כשלון) · warn (אזהרה) · info (מידע). נעלמת לבד אחרי
+    duration מילישניות; כשהעכבר מעליה — הספירה נעצרת עד שהוא יוצא."""
+
+    closed = Signal(object)
+
+    def __init__(self, parent: QWidget, kind: str, text: str,
+                 actions: Iterable[tuple[str, Callable[[], None]]] = (),
+                 duration: int = 4000, closable: bool = False):
+        super().__init__(parent)
+        self.setObjectName("toast")
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(22, 14, 16, 14)
+        lay.setSpacing(14)
+        dot = QLabel()
+        dot.setObjectName("toastDot")
+        dot.setProperty("kind", kind)
+        dot.setFixedSize(12, 12)
+        lay.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.label = QLabel(rtl(text))
+        self.label.setObjectName("toastText")
+        self.label.setTextFormat(Qt.TextFormat.PlainText)
+        self.label.setWordWrap(True)
+        lay.addWidget(self.label, 1)
+        for label, slot in actions:
+            b = QPushButton(label)
+            b.setObjectName("toastBtn")
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda _=False, s=slot: self._act(s))
+            lay.addWidget(b, 0, Qt.AlignmentFlag.AlignVCenter)
+        if closable:
+            x = QPushButton("✕")
+            x.setObjectName("toastClose")
+            x.setToolTip("סגור")
+            x.setCursor(Qt.CursorShape.PointingHandCursor)
+            x.clicked.connect(self.dismiss)
+            lay.addWidget(x, 0, Qt.AlignmentFlag.AlignVCenter)
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(28)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(0, 0, 0, 110))
+        self.setGraphicsEffect(shadow)
+        self._remaining = duration
+        self._clock = QElapsedTimer()
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self.dismiss)
+        self._done = False
+
+    def natural_width(self) -> int:
+        """הרוחב שבו כל הטקסט נכנס בשורה אחת (ToastHost מגביל ל-380–540, כמו בדמו)."""
+        others = self.layout().sizeHint().width() - self.label.sizeHint().width()
+        return others + self.label.fontMetrics().horizontalAdvance(self.label.text()) + 4
+
+    def start(self):
+        self._clock.start()
+        self._timer.start(self._remaining)
+
+    def enterEvent(self, event):
+        if self._timer.isActive():   # העכבר מעל ההודעה — עוצרים את הספירה
+            self._remaining = max(800, self._remaining - self._clock.elapsed())
+            self._timer.stop()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if not self._done and not self._timer.isActive():
+            self.start()
+        super().leaveEvent(event)
+
+    def _act(self, slot: Callable[[], None]):
+        """קודם סוגרים את ההודעה, ורק אחר כך מפעילים (הפעולה עלולה לפתוח חלון)."""
+        self.dismiss()
+        QTimer.singleShot(0, slot)
+
+    def dismiss(self):
+        if self._done:
+            return
+        self._done = True
+        self._timer.stop()
+        self.hide()
+        self.closed.emit(self)
+        self.deleteLater()
+
+
+class ToastHost(QObject):
+    """ההודעות בפינה השמאלית התחתונה של החלון, מעל שורת המצב (כמו בדמו). החדשה
+    למטה, והקודמות עולות מעליה. כשלון נשאר פי 2 מהצלחה, ויש בו ✕ לסגירה."""
+
+    DURATION = {"ok": 4000, "info": 4000, "warn": 6000, "err": 8000}
+
+    def __init__(self, window: QWidget, bottom: int = 84, left: int = 24, max_count: int = 4):
+        super().__init__(window)
+        self._win = window
+        self._bottom = bottom
+        self._left = left
+        self._max = max_count
+        self._toasts: list[Toast] = []
+        window.installEventFilter(self)
+
+    def show(self, kind: str, text: str,
+             actions: Iterable[tuple[str, Callable[[], None]]] = (),
+             closable: Optional[bool] = None) -> Toast:
+        if closable is None:
+            closable = kind == "err"
+        t = Toast(self._win, kind, text, actions, self.DURATION.get(kind, 4000), closable)
+        t.closed.connect(self._on_closed)
+        self._toasts.append(t)
+        while len(self._toasts) > self._max:
+            self._toasts[0].dismiss()
+        t.show()
+        self._relayout()
+        t.start()
+        return t
+
+    def _on_closed(self, t: Toast):
+        if t in self._toasts:
+            self._toasts.remove(t)
+        self._relayout()
+
+    def _relayout(self):
+        y = self._win.height() - self._bottom
+        for t in reversed(self._toasts):   # החדשה ביותר — למטה
+            w = max(380, min(540, t.natural_width()))
+            h = max(60, t.heightForWidth(w) if t.hasHeightForWidth() else t.sizeHint().height())
+            y -= h
+            t.setGeometry(self._left, y, w, h)
+            t.raise_()
+            y -= 10
+
+    def eventFilter(self, obj, event):
+        if obj is self._win and event.type() == QEvent.Type.Resize:
+            self._relayout()
+        return False
+
+
+# ---------------------------------------------------------------------- חלון (כמו בדמו)
+class Modal(QDialog):
+    """חלון כמו בדמו: החלון הראשי מוחשך, ובאמצע כרטיס — סמל · כותרת · שורת הפעולה ·
+    תוכן · כפתורים. run() מחזיר את המפתח של הכפתור שנלחץ ("" = סגירה / Esc).
+
+    icon: "cross" (כשלון) · "alert" (אזהרה) · "check" (הצלחה) · "" (בלי סמל)."""
+
+    def __init__(self, parent: QWidget, title: str, op_html: str = "", icon: str = "",
+                 wide: bool = False):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setModal(True)
+        self._key = ""
+        self._default: Optional[QPushButton] = None
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(16, 16, 16, 16)
+        outer.addStretch(1)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.card = QFrame()
+        self.card.setObjectName("modal")
+        self.card.setFixedWidth(620 if wide else 540)
+        row.addWidget(self.card)
+        row.addStretch(1)
+        outer.addLayout(row)
+        outer.addStretch(1)
+        v = QVBoxLayout(self.card)
+        v.setContentsMargins(24, 24, 24, 24)
+        v.setSpacing(16)
+        head = QHBoxLayout()
+        head.setSpacing(12)
+        if icon:
+            c = theme.colors()
+            ic = QLabel()
+            ic.setObjectName("modalIcon")
+            ic.setProperty("kind", icon)
+            ic.setFixedSize(40, 40)
+            ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            ic.setPixmap(svg_pixmap(icon, c["ok"] if icon == "check" else c["danger"], 20, 2.4))
+            head.addWidget(ic)
+        t = QLabel(rtl(title))
+        t.setObjectName("modalTitle")
+        t.setWordWrap(True)
+        head.addWidget(t, 1)
+        v.addLayout(head)
+        if op_html:
+            op = QLabel(rtl(op_html))
+            op.setObjectName("modalOp")
+            op.setTextFormat(Qt.TextFormat.RichText)
+            op.setWordWrap(True)
+            v.addWidget(op)
+        self.body = QVBoxLayout()
+        self.body.setSpacing(12)
+        v.addLayout(self.body)
+        self.actions = QHBoxLayout()
+        self.actions.setSpacing(10)
+        self.actions.addStretch(1)
+        v.addLayout(self.actions)
+        shadow = QGraphicsDropShadowEffect(self.card)
+        shadow.setBlurRadius(40)
+        shadow.setOffset(0, 12)
+        shadow.setColor(QColor(0, 0, 0, 150))
+        self.card.setGraphicsEffect(shadow)
+
+    def add(self, widget: QWidget, stretch: int = 0):
+        self.body.addWidget(widget, stretch)
+
+    def add_text(self, html: str, name: str = "modalText") -> QLabel:
+        """שורת טקסט בגוף החלון. name: modalText (רגיל) · hint (אפור) · reason (תיבה
+        אדומה) · okNote (תיבה ירוקה) · noticeInfo / noticeDanger."""
+        lbl = QLabel(rtl(html))
+        lbl.setObjectName(name)
+        lbl.setTextFormat(Qt.TextFormat.RichText)
+        lbl.setWordWrap(True)
+        self.body.addWidget(lbl)
+        return lbl
+
+    def add_button(self, text: str, key: str, style: str = "", default: bool = False) -> QPushButton:
+        """הכפתורים נוספים מימין לשמאל, מהקרוב לתוכן: קודם הפעולה ("אשר והרץ"),
+        ואחריה "ביטול" — כמו בדמו."""
+        b = QPushButton(text)
+        if style:
+            b.setObjectName(style)
+        b.setAutoDefault(False)
+        b.clicked.connect(lambda _=False, k=key: self._finish(k))
+        self.actions.addWidget(b)
+        if default:
+            b.setDefault(True)
+            self._default = b
+        return b
+
+    def _finish(self, key: str):
+        self._key = key
+        self.accept()
+
+    def run(self) -> str:
+        """מציג את החלון מעל כל החלון הראשי ומחכה לבחירה; מחזיר את מפתח הכפתור."""
+        p = self.parentWidget()
+        if p is not None:
+            self.setGeometry(p.window().geometry())   # השכבה הכהה מכסה את כל החלון הראשי
+        self.exec()
+        return self._key
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._default is not None:
+            QTimer.singleShot(0, self._default.setFocus)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor(4, 6, 10, 158))   # הרקע המוחשך — כמו בדמו
+        p.end()
+
+    def mousePressEvent(self, event):
+        # לחיצה על הרקע הכהה (מחוץ לכרטיס) = סגירה, כמו בדמו ("" — כמו ביטול)
+        if not self.card.geometry().contains(event.position().toPoint()):
+            self.reject()
+            return
+        super().mousePressEvent(event)
+
+
+def commands_box(rows: Iterable[tuple[str, str]]) -> QFrame:
+    """תיבת הפקודות (כמו בדמו): לכל שלב — השם בעברית, ומתחתיו הפקודה בכתב קבוע
+    (משמאל לימין, ונשברת בכל תיקייה כדי לא לחרוג מהחלון)."""
+    box = QFrame()
+    box.setObjectName("cmds")
+    v = QVBoxLayout(box)
+    v.setContentsMargins(14, 12, 14, 12)
+    v.setSpacing(3)
+    for i, (step, cmd) in enumerate(rows, 1):
+        if i > 1:
+            v.addSpacing(8)
+        s = QLabel(rtl(f"{i}. {step}"))
+        s.setObjectName("cmdStep")
+        s.setTextFormat(Qt.TextFormat.PlainText)
+        s.setWordWrap(True)
+        v.addWidget(s)
+        c = QLabel(breakable_path(cmd))
+        c.setObjectName("cmdText")
+        c.setTextFormat(Qt.TextFormat.PlainText)
+        c.setWordWrap(True)
+        c.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        c.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignAbsolute)
+        c.setToolTip(cmd)
+        v.addWidget(c)
+    return box
+
+
+def mono_box(lines: Iterable[str]) -> QFrame:
+    """תיבה כהה בכתב קבוע (למשל "פרטים טכניים" בחלון הכשלון)."""
+    box = QFrame()
+    box.setObjectName("cmds")
+    v = QVBoxLayout(box)
+    v.setContentsMargins(14, 12, 14, 12)
+    lbl = QLabel(breakable_path("\n".join(lines)))
+    lbl.setObjectName("cmdText")
+    lbl.setTextFormat(Qt.TextFormat.PlainText)   # פלט כמו "< waiting for any device >" — כמו שהוא
+    lbl.setWordWrap(True)
+    lbl.setLayoutDirection(Qt.LayoutDirection.LeftToRight)   # כמו בדמו: משמאל לימין, מיושר לשמאל
+    lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignAbsolute)
+    v.addWidget(lbl)
+    return box
+
+
+def collapsible(title: str, content: QWidget) -> QWidget:
+    """כותרת שנפתחת בלחיצה (כמו "הצג פרטים טכניים" בדמו): ▸ סגור · ▾ פתוח."""
+    w = QWidget()
+    v = QVBoxLayout(w)
+    v.setContentsMargins(0, 0, 0, 0)
+    v.setSpacing(8)
+    b = QPushButton(f"▸ {title}")
+    b.setObjectName("linkBtn")
+    b.setCursor(Qt.CursorShape.PointingHandCursor)
+    v.addWidget(b, 0, Qt.AlignmentFlag.AlignLeft)   # בממשק מימין לשמאל — בצד ימין
+    content.hide()
+    v.addWidget(content)
+
+    def toggle():
+        show = not content.isVisible()
+        content.setVisible(show)
+        b.setText(f"{'▾' if show else '▸'} {title}")
+
+    b.clicked.connect(toggle)
+    return w

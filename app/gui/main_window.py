@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import html
 import subprocess
 import threading
 from datetime import datetime
@@ -598,19 +599,33 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "עסוק",
                                 "יש פעולה פעילה — המתן לסיומה או לחץ 'בטל פעולה'.")
             return False
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle("אישור פעולה")
-        dlg.setIcon(QMessageBox.Icon.Warning if job.danger else QMessageBox.Icon.Question)
-        dlg.setText(f"<b>{job.name}</b><br>לבצע את הפעולה הבאה?")
-        body = "פקודות שירוצו:\n" + "\n".join(job.describe())
+        # חלון "אישור פעולה" כמו בדמו: שם הפעולה + תגית הסוג (קריאה / כתיבה / מסוכנת),
+        # הפקודות שירוצו, וההערות. בפעולה מסוכנת "ביטול" הוא ברירת המחדל, כמו קודם.
+        kind = job.effective_kind
+        danger = kind == "danger"
+        pill_text, pill_kind = {"read": ("קריאה בלבד", "ok"), "write": ("כתיבה", "warn"),
+                                "danger": ("⚠ פעולה מסוכנת", "danger")}.get(kind, ("קריאה בלבד", "ok"))
+        dlg = ui_kit.Modal(self, ("⚠ " if danger else "") + "אישור פעולה")
+        op_row = QWidget()
+        orl = QHBoxLayout(op_row)
+        orl.setContentsMargins(0, 0, 0, 0)
+        orl.setSpacing(10)
+        op_name = QLabel(ui_kit.rtl(f"<b>{html.escape(job.name)}</b>"))
+        op_name.setObjectName("modalOp")
+        op_name.setTextFormat(Qt.TextFormat.RichText)
+        orl.addWidget(op_name, 0)
+        orl.addWidget(ui_kit.Pill(pill_text, pill_kind), 0, Qt.AlignmentFlag.AlignVCenter)
+        orl.addStretch(1)
+        dlg.add(op_row)
+        dlg.add_text("לבצע את הפעולה הבאה?", "hint")
+        dlg.add_text("פקודות שירוצו:", "hint")
+        dlg.add(ui_kit.commands_box([(s.name, s.command.describe()) for s in job.steps]))
         if job.notes:
-            body += "\n\n" + "\n".join(job.notes)
-        dlg.setInformativeText(body)
-        dlg.setStandardButtons(_YES | _NO)
-        dlg.setDefaultButton(_NO if job.danger else _YES)
-        dlg.button(_YES).setText("אשר והרץ")
-        dlg.button(_NO).setText("ביטול")
-        if dlg.exec() != _YES:
+            dlg.add_text("<br>".join(self._note_html(n) for n in job.notes),
+                         "noticeDanger" if danger else "noticeInfo")
+        dlg.add_button("אשר והרץ", "run", "btnDanger" if danger else "btnPrimary", default=not danger)
+        dlg.add_button("ביטול", "", default=danger)
+        if dlg.run() != "run":
             self._say("info", f"בוטל על ידי המשתמש: {job.name}")
             return False
         try:
@@ -626,6 +641,15 @@ class MainWindow(QMainWindow):
         if job.danger:
             self.tabs.setCurrentWidget(self.logs_tab)
         return True
+
+    @staticmethod
+    def _note_html(note: str) -> str:
+        """הערה בחלון האישור. ערך באנגלית אחרי "שם: " (למשל נתיב הגיבוי) — מבודד
+        משמאל לימין ונשבר בכל תיקייה, כדי שיוצג שלם ובסדר הנכון."""
+        head, sep, tail = note.partition(": ")
+        if sep and tail and ui_kit.ltr(tail) != tail:   # אין בו עברית
+            return html.escape(head + sep) + html.escape(ui_kit.ltr(ui_kit.breakable_path(tail)))
+        return html.escape(note)
 
     # ------------------------------------------------------------ UI
     def _build_ui(self):
@@ -807,6 +831,8 @@ class MainWindow(QMainWindow):
         self.bank_tab.hide()
         cl.addWidget(progbar)   # שורת המצב בתחתית
         self.setCentralWidget(central)
+        # הודעות קצרות בפינה השמאלית התחתונה, מעל שורת המצב (כמו בדמו)
+        self.toasts = ui_kit.ToastHost(self)
 
     def _stat_block(self, caption: str, value: QLabel, lead: QWidget | None = None) -> QWidget:
         """נתון בכרטיס המכשיר (כמו בדמו): כותרת קטנה מעל, והערך מתחתיה.
@@ -2426,7 +2452,8 @@ class MainWindow(QMainWindow):
         self._retry_action = None
         name = "Fastboot: הפעלה מחדש" + (f" ({target})" if target else "")
         self._request(self._plan(
-            lambda: plan_fastboot_simple(name, FastbootCommands.reboot(target), retries=0)))
+            lambda: plan_fastboot_simple(name, FastbootCommands.reboot(target), retries=0,
+                                         kind="write")))
 
     # ------------------------------------------------------------ לשונית ניהול
     def _detect_pyenv(self, quiet: bool = False):
@@ -2805,6 +2832,7 @@ class MainWindow(QMainWindow):
         elif cancelled:
             self.status_label.setText(f"{name}: בוטל על ידי המשתמש")
             self._progress_state("err")
+            self.toasts.show("err", f"{name} — בוטל")
         else:
             self.status_label.setText(f"{name}: ❌ נכשל")
             self._progress_state("err")
@@ -2813,107 +2841,110 @@ class MainWindow(QMainWindow):
             self._clear_timer.start()   # ינוקה אחרי 30 שניות
 
     def _show_success(self, name: str):
-        """הודעת הצלחה ברורה עם הסבר קצר: מה נעשה ולמה זה משמש."""
+        """הצלחה — הודעה ירוקה בצד (כמו בדמו). אם יש הסבר "שימושים" — כפתור "פרטים"."""
         expl = self._success_explanation(name)
-        QMessageBox.information(
-            self, "✅ הפעולה הושלמה בהצלחה",
-            f"הפעולה '{name}' הושלמה בהצלחה." + (f"\n\n{expl}" if expl else ""))
+        actions = [("פרטים", lambda: self._show_success_details(name, expl))] if expl else []
+        self.toasts.show("ok", f"{name} — הושלם", actions)
+
+    def _show_success_details(self, name: str, expl: str):
+        """ההסבר על פעולה שהצליחה — מה נעשה ולמה זה משמש (נפתח מהכפתור "פרטים")."""
+        dlg = ui_kit.Modal(self, "הפעולה הושלמה בהצלחה",
+                           f"<b>{html.escape(name)}</b> הושלמה בהצלחה.", icon="check")
+        dlg.add_text(html.escape(expl).replace("\n", "<br>"))
+        dlg.add_button("סגור", "", "btnPrimary", default=True)
+        dlg.run()
+
+    def _failure_info(self, name: str, job) -> dict:
+        """מה להציג על כשלון, לפי סוג הכשלון — אותם הסברים כמו קודם, מסודרים כמו בדמו:
+        כותרת · סיבה · מה אפשר לעשות (צעדים) · האם להציע ניסיון דרך פורט COM."""
+        from ..core.fastboot_bridge import FastbootCommand
+        if job is not None and getattr(job, "no_fastboot_device", False):
+            return {
+                "title": "אין מכשיר במצב Fastboot",
+                "short": "לא נמצא מכשיר במצב Fastboot",
+                "reason": "לא נמצא מכשיר מחובר במצב Fastboot "
+                          f"(המתנה של עד {int(FastbootCommand.DEVICE_TIMEOUT)} שניות).",
+                "todo": ["מהמכשיר הדלוק: בלשונית ADB לחץ 'עבור למצב Fastboot'.",
+                         "או: כבה את המכשיר, החזק ווליום למטה + הפעלה עד שמופיע מסך Fastboot, "
+                         "וחבר בכבל USB.",
+                         "אם המכשיר במסך Fastboot ועדיין לא מזוהה — בדוק את הדרייבר "
+                         "(בדיקת דרייבר Fastboot, בתחתית הלשונית)."],
+                "com": False,
+            }
+        if job is not None and getattr(job, "connection_failed", False):
+            todo = ["כבה את המכשיר לגמרי ונתק את הכבל.",
+                    "החזק את לחצן הווליום (למעלה, למטה, או שניהם — תלוי במכשיר) "
+                    "וחבר את הכבל תוך כדי.",
+                    "אם המכשיר דלוק ולא מגיב — החזק את לחצן ההפעלה כ-10 שניות תוך כדי החיבור.",
+                    "אם החיבור נופל באמצע פעולה: נסה כבל אחר ויציאת USB ישירה במחשב (בלי מפצל)."]
+            if self._retry_action is not None:
+                todo.append("לחץ 'ניסיון חוזר' — ואז חבר את המכשיר.")
+            return {
+                "title": "החיבור למכשיר נכשל",
+                "short": "החיבור למכשיר נכשל",
+                "reason": f"החיבור למכשיר נכשל {job.retries + 1} פעמים "
+                          f"(עד {int(job.connect_timeout)} שניות המתנה בכל ניסיון).",
+                "todo": todo,
+                # חלופה ל-UsbDk: ניסיון דרך פורט COM (דרייבר VCOM) — אם עוד לא מסומן
+                "com": not self.serial_check.isChecked(),
+            }
+        return {
+            "title": "הפעולה נכשלה",
+            "short": "",
+            "reason": "סיבות נפוצות: המכשיר יצא ממצב BROM/Preloader, התקשורת עם המעבד נותקה, "
+                      "ה-DA לא נטען, או שהמכשיר תקול.",
+            "todo": ["נסו להכניס את המכשיר שוב למצב BROM — נתק וחבר אותו מחדש.",
+                     "בדוק את לשונית הלוגים לפירוט מלא."],
+            "com": False,
+        }
+
+    def _failure_tech_lines(self) -> list[str]:
+        """הפרטים הטכניים לחלון הכשלון: השגיאה האחרונה והשורות האחרונות מהלוג."""
+        lines = []
+        err = getattr(self, "_last_error", "")
+        if err:
+            lines.append(f"שגיאה אחרונה: {err}")
+        recent = [plain for level, _html, plain in getattr(self, "_log_entries", [])
+                  if level in ("raw", "error", "warning")][-8:]
+        return lines + recent
 
     def _show_failure(self, name: str):
-        """חלון ברור שהפעולה נכשלה — קריטי כדי שלא יחשבו שהיא הצליחה."""
-        last = job_manager.last
-        if last is not None and getattr(last, "no_fastboot_device", False):
-            self._show_no_fastboot_device(name)
-            return
-        if last is not None and getattr(last, "connection_failed", False):
-            self._show_connection_failure(name, last)
-            return
-        err = getattr(self, "_last_error", "")
-        detail = f"\n\nשגיאה אחרונה:\n{err}" if err else ""
-        dlg = QMessageBox(self)
-        dlg.setIcon(QMessageBox.Icon.Warning)
-        dlg.setWindowTitle("❌ הפעולה נכשלה")
-        dlg.setText(f"הפעולה '{name}' לא הושלמה.")
-        dlg.setInformativeText(
-            f"{detail}\n\nבדוק את לשונית הלוגים לפירוט מלא.\n"
-            "סיבות נפוצות: המכשיר יצא ממצב BROM/Preloader — נסו להכניס אותו שוב במצב BROM, "
-            "התקשורת עם המעבד נותקה, ה-DA לא נטען, או שהמכשיר תקול. "
-            "נתק וחבר מחדש את המכשיר במצב BROM.")
-        close_btn = dlg.addButton("סגור", QMessageBox.ButtonRole.RejectRole)
-        retry_btn = None
-        if self._retry_action is not None:
-            retry_btn = dlg.addButton("🔄 נסה שוב", QMessageBox.ButtonRole.AcceptRole)
-            dlg.setDefaultButton(retry_btn)
-        dlg.exec()
-        if retry_btn is not None and dlg.clickedButton() is retry_btn:
-            action = self._retry_action
-            if action is not None:
-                self._retry_now(action)
+        """כשלון — הודעה אדומה בצד (נשארת פי 2 מהצלחה, עם ✕), ובה "מה לעשות" —
+        חלון הכשלון עם ההסבר המלא — ו"ניסיון חוזר"."""
+        info = self._failure_info(name, job_manager.last)
+        retry = self._retry_action   # נשמר עכשיו: ההודעה לא חוסמת, ועד הלחיצה זה עלול להשתנות
+        tech = self._failure_tech_lines()
+        actions = [("מה לעשות", lambda: self._show_failure_details(name, info, retry, tech))]
+        if retry is not None:
+            actions.append(("ניסיון חוזר", lambda: self._retry_now(retry)))
+        text = f"{name} — נכשל" + (f": {info['short']}" if info["short"] else "")
+        self.toasts.show("err", text, actions)
 
-    def _show_no_fastboot_device(self, name: str):
-        """פקודת Fastboot נכשלה כי אין מכשיר במצב Fastboot — הסבר + ביטול / ניסיון חוזר."""
-        from ..core.fastboot_bridge import FastbootCommand
-        dlg = QMessageBox(self)
-        dlg.setIcon(QMessageBox.Icon.Warning)
-        dlg.setWindowTitle("📵 אין מכשיר במצב Fastboot")
-        dlg.setText(f"'{name}' לא בוצע: לא נמצא מכשיר מחובר במצב Fastboot "
-                    f"(המתנה של עד {int(FastbootCommand.DEVICE_TIMEOUT)} שניות).")
-        dlg.setInformativeText(
-            "איך להכניס את המכשיר למצב Fastboot:\n"
-            "• מהמכשיר הדלוק: בלשונית 📱 ADB לחץ '🚀 עבור למצב Fastboot'.\n"
-            "• או: כבה את המכשיר, החזק ווליום למטה + הפעלה עד שמופיע מסך Fastboot, "
-            "וחבר בכבל USB.\n\n"
-            "אם המכשיר במסך Fastboot ועדיין לא מזוהה — בדוק את הדרייבר "
-            "(🩺 בדיקת דרייבר Fastboot, בתחתית הלשונית).")
-        dlg.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
-        retry_btn = None
-        if self._retry_action is not None:
-            retry_btn = dlg.addButton("🔄 ניסיון חוזר", QMessageBox.ButtonRole.AcceptRole)
-            dlg.setDefaultButton(retry_btn)
-        dlg.exec()
-        if retry_btn is not None and dlg.clickedButton() is retry_btn:
-            action = self._retry_action
-            if action is not None:
-                self._retry_now(action)
-
-    def _show_connection_failure(self, name: str, job):
-        """כל הניסיונות נכשלו בחיבור למכשיר — הסבר איך לחבר + ביטול / ניסיון חוזר."""
-        attempts = job.retries + 1
-        dlg = QMessageBox(self)
-        dlg.setIcon(QMessageBox.Icon.Warning)
-        dlg.setWindowTitle("🔌 החיבור למכשיר נכשל")
-        dlg.setText(f"'{name}' נעצר: החיבור למכשיר נכשל {attempts} פעמים "
-                    f"(עד {int(job.connect_timeout)} שניות המתנה בכל ניסיון).")
-        dlg.setInformativeText(
-            "איך לחבר במצב BROM:\n"
-            "1. כבה את המכשיר לגמרי ונתק את הכבל.\n"
-            "2. החזק את לחצן הווליום (למעלה, למטה, או שניהם — תלוי במכשיר) "
-            "וחבר את הכבל תוך כדי.\n"
-            "3. אם המכשיר דלוק ולא מגיב — החזק את לחצן ההפעלה כ-10 שניות תוך כדי החיבור.\n\n"
-            "אם החיבור נופל באמצע פעולה: נסה כבל אחר ויציאת USB ישירה במחשב (בלי מפצל).\n\n"
-            "לחץ 'ניסיון חוזר' — ואז חבר את המכשיר.")
-        cancel_btn = dlg.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
-        retry_btn = None
-        serial_btn = None
-        if self._retry_action is not None:
-            retry_btn = dlg.addButton("🔄 ניסיון חוזר", QMessageBox.ButtonRole.AcceptRole)
-            dlg.setDefaultButton(retry_btn)
-            # חלופה ל-UsbDk: ניסיון דרך פורט COM (דרייבר VCOM) — אם עוד לא מסומן
-            if not self.serial_check.isChecked():
-                serial_btn = dlg.addButton("🔌 נסה דרך פורט COM (VCOM)",
-                                           QMessageBox.ButtonRole.ActionRole)
-                serial_btn.setToolTip(
-                    "חלופה כש-UsbDk חסום (למשל Windows 11 עם בידוד ליבה): "
-                    "mtkclient יתחבר דרך דרייבר ה-VCOM. דורש דרייבר MediaTek VCOM מותקן.")
-        dlg.exec()
-        clicked = dlg.clickedButton()
-        if serial_btn is not None and clicked is serial_btn:
+    def _show_failure_details(self, name: str, info: dict, retry, tech: list[str]):
+        """חלון הכשלון (כמו בדמו): סיבה · מה אפשר לעשות · פרטים טכניים · כפתורים."""
+        dlg = ui_kit.Modal(self, info["title"], f"<b>{html.escape(name)}</b> לא הושלמה.",
+                           icon="cross", wide=True)
+        dlg.add_text(html.escape(info["reason"]), "reason")
+        dlg.add_text("מה אפשר לעשות", "secTitle")
+        dlg.add(ui_kit.steps_list([html.escape(t) for t in info["todo"]]))
+        if tech:
+            dlg.add(ui_kit.collapsible("הצג פרטים טכניים", ui_kit.mono_box(tech)))
+        if retry is not None:
+            dlg.add_button("ניסיון חוזר", "retry", "btnPrimary", default=True)
+            if info.get("com"):
+                b = dlg.add_button("נסה דרך פורט COM\u200f (VCOM)\u200f", "com", "btnSoft")
+                b.setToolTip("חלופה כש-UsbDk חסום (למשל Windows 11 עם בידוד ליבה): "
+                             "mtkclient יתחבר דרך דרייבר ה-VCOM. דורש דרייבר MediaTek VCOM מותקן.")
+        dlg.add_button("פתח לוג", "log", "btnGhost")
+        dlg.add_button("סגור", "", default=retry is None)
+        key = dlg.run()
+        if key == "com":
             self.serial_check.setChecked(True)   # נשאר מסומן לפעולות הבאות
-            clicked = retry_btn
-        if retry_btn is not None and clicked is retry_btn:
-            action = self._retry_action
-            if action is not None:
-                self._retry_now(action)
+            key = "retry"
+        if key == "retry" and retry is not None:
+            self._retry_now(retry)
+        elif key == "log":
+            self.tabs.setCurrentWidget(self.logs_tab)
 
     def _set_serialport(self, on: bool):
         """מתג 'חיבור דרך פורט COM' — חל על פעולות mtkclient הבאות (לא על פעולה שרצה)."""
@@ -2926,17 +2957,51 @@ class MainWindow(QMainWindow):
             self._say("info", "mtkclient: חיבור USB ישיר (UsbDk) — ברירת המחדל.")
 
     def _cancel_job(self):
+        """עצירת הפעולה ("בטל פעולה") — חלון כמו בדמו, לפי מה שקורה עכשיו: קריאה ·
+        בזמן הגיבוי (הצריבה עוד לא התחילה) · באמצע כתיבה (עם מצב הגיבוי האמיתי)."""
         if not job_manager.busy:
             return
         cur = job_manager.current
-        if cur is not None and cur.danger:
-            # אזהרת נזק — רק בפעולות כתיבה (צריבה/מחיקה/seccfg); בקריאה בלבד אין סיכון
-            text = ("לעצור את הפעולה הנוכחית?\n"
-                    "⚠️ עצירה באמצע צריבה עלולה להשאיר את המחיצה פגומה.")
+        if cur is None:
+            return
+        kind = cur.effective_kind
+        name = html.escape(cur.name)
+        part = html.escape(cur.target)
+        if kind == "danger" and cur.backup_path is not None and cur.step_index <= 0:
+            dlg = ui_kit.Modal(self, "לעצור את הצריבה?", f"<b>{name}</b>")
+            dlg.add_text(f"הצריבה עוד לא התחילה — כרגע נשמר גיבוי של המחיצה <b>{part}</b>. "
+                         "עצירה עכשיו לא משנה כלום במכשיר.", "okNote")
+            dlg.add_button("עצור", "stop", "btnDanger")
+            dlg.add_button("המשך", "", default=True)
+        elif kind == "danger":
+            dlg = ui_kit.Modal(self, "לעצור באמצע פעולת כתיבה?", f"<b>{name}</b> עדיין רצה.",
+                               icon="alert", wide=True)
+            flashing = bool(cur.target) and "צריבת" in cur.name
+            dlg.add_text("<b>עצירה עכשיו מסוכנת.</b> "
+                         + ("המחיצה נכתבת כרגע" if flashing else "הפעולה משנה כרגע את המכשיר")
+                         + " — עצירה באמצע עלולה להשאיר אותה פגומה, והמכשיר עלול לא לעלות.",
+                         "reason")
+            if cur.backup_path is not None:
+                path = html.escape(ui_kit.ltr(ui_kit.breakable_path(str(cur.backup_path))))
+                dlg.add_text(f"<b>יש גיבוי תקין.</b> לפני הצריבה נשמר גיבוי של המחיצה "
+                             f"<b>{part}</b> ונבדק:<br>{path}<br>"
+                             "אם תעצור ומשהו ישתבש — אפשר לצרוב אותו חזרה בלשונית צריבה.", "okNote")
+            elif flashing and cur.channel == "fastboot":
+                dlg.add_text("✕ <b>אין גיבוי.</b> בצריבה דרך Fastboot התוכנה לא מגבה את המחיצה "
+                             "אוטומטית — אם תעצור ומשהו ישתבש, אין ממה לשחזר.", "reason")
+            elif cur.backup_skipped:
+                dlg.add_text("✕ <b>אין גיבוי.</b> האפשרות 'גיבוי אוטומטי של המחיצה לפני צריבה' "
+                             "כובתה — אם תעצור ומשהו ישתבש, אין ממה לשחזר את המחיצה.", "reason")
+            dlg.add_text("מומלץ לתת לפעולה להסתיים.", "hint")
+            dlg.add_button("תן לפעולה להסתיים", "", "btnPrimary", default=True)
+            dlg.add_button("עצור בכל זאת", "stop", "btnDangerOutline")
         else:
-            text = "לעצור את הפעולה הנוכחית?"
-        if QMessageBox.question(self, "ביטול פעולה", text,
-                                _YES | _NO, _NO) == _YES:
+            dlg = ui_kit.Modal(self, "ביטול פעולה", f"<b>{name}</b>")
+            dlg.add_text("לעצור את הפעולה? זו פעולת קריאה בלבד — העצירה לא פוגעת במכשיר."
+                         if kind == "read" else "לעצור את הפעולה?", "hint")
+            dlg.add_button("עצור", "stop", "btnDanger")
+            dlg.add_button("המשך", "", default=True)
+        if dlg.run() == "stop" and job_manager.current is cur:
             job_manager.cancel_current()
             self._show_cancelling()
 
@@ -4427,7 +4492,7 @@ class MainWindow(QMainWindow):
             job = Job("מעבר למצב Fastboot\u200f (ADB → Fastboot)\u200f", [
                 Step("אתחול למצב Fastboot", adb_boot.RebootToBootloader()),
                 Step("המתנה למכשיר במצב Fastboot", adb_boot.WaitForFastboot(60)),
-            ])
+            ], kind="write")
             job.notes.append("המכשיר יאותחל למצב Fastboot. הבוטלאודר עצמו לא נפתח ולא ננעל, "
                               "והנתונים במכשיר לא נמחקים.")
             return job

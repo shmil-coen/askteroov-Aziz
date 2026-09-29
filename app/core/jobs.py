@@ -56,6 +56,13 @@ class Job:
     connect_timeout: float = 45.0
     connection_failed: bool = False                     # הכשל הסופי היה כשל חיבור (לחלון הסיום)
     no_fastboot_device: bool = False                    # לא נמצא מכשיר במצב Fastboot (לחלון הסיום)
+    # מידע לחלונות האישור והעצירה בלבד — לא משנה איך הפעולה רצה
+    kind: str = ""                                      # read / write / danger ("" = לפי danger)
+    target: str = ""                                    # המחיצה שהפעולה כותבת אליה (אם יש)
+    backup_path: Optional[Path] = None                  # הגיבוי שנשמר לפני הכתיבה (אם הוגדר)
+    backup_skipped: bool = False                        # המשתמש כיבה את הגיבוי האוטומטי
+    channel: str = ""                                   # "fastboot" — בפעולות Fastboot אין גיבוי אוטומטי
+    step_index: int = -1                                # השלב שרץ עכשיו (0 = הראשון)
     status: str = "ממתין לאישור"
     ok: Optional[bool] = None
     _cancel: threading.Event = field(default_factory=threading.Event)
@@ -64,6 +71,11 @@ class Job:
     def describe(self) -> list[str]:
         return [f"{i + 1}. {s.name}:  {s.command.describe()}"
                 for i, s in enumerate(self.steps)]
+
+    @property
+    def effective_kind(self) -> str:
+        """סוג הפעולה לחלון האישור: read (קריאה) / write (כתיבה) / danger (מסוכנת)."""
+        return self.kind or ("danger" if self.danger else "read")
 
     def cancel(self):
         self._cancel.set()
@@ -128,6 +140,7 @@ class JobManager:
                 if job._cancel.is_set():
                     ok = False
                     break
+                job.step_index = i   # לחלון העצירה (למשל: עדיין בגיבוי, או כבר בצריבה)
                 self._emit_state(f"{job.name} — שלב {i + 1}/{total}: {step.name}")
                 if self.on_progress:
                     self.on_progress(0.0, step.name)
@@ -339,6 +352,11 @@ def plan_write_partition(partition: str, image: Path, part_length: Optional[int]
     steps.append(Step(f"צריבת {partition}", MtkCommands.write_partition(partition, image, **kw)))
     job = Job(f"צריבת {partition}", steps, on_done=on_done, danger=True)
     job.notes = notes
+    job.target = partition
+    if backup_first:
+        job.backup_path = backup_path
+    else:
+        job.backup_skipped = True
     return job
 
 
@@ -354,10 +372,10 @@ def plan_erase_partitions(partitions: list[str], title: str = "מחיקת מחי
 
 
 def plan_fastboot_simple(name: str, command, retries: int = 1,
-                         on_done=None, on_output=None) -> Job:
-    """זיהוי / getvar / reboot — קריאה בלבד, עם ניסיון חוזר קל."""
+                         on_done=None, on_output=None, kind: str = "read") -> Job:
+    """זיהוי / getvar / reboot — עם ניסיון חוזר קל. kind: "read", או "write" להפעלה מחדש."""
     return Job(name, [Step(name, command)], on_done=on_done,
-               on_output=on_output, retries=retries)
+               on_output=on_output, retries=retries, kind=kind)
 
 
 def plan_fastboot_flash(partition: str, image: "Path", on_done=None, **kw) -> Job:
@@ -365,7 +383,7 @@ def plan_fastboot_flash(partition: str, image: "Path", on_done=None, **kw) -> Jo
     from .fastboot_bridge import FastbootCommands
     job = Job(f"Fastboot: צריבת {partition}",
               [Step(f"flash {partition}", FastbootCommands.flash(partition, image))],
-              on_done=on_done, danger=True)
+              on_done=on_done, danger=True, target=partition, channel="fastboot")
     job.notes.append("צריבה דרך fastboot — דורשת בוטלאודר פתוח.")
     job.notes.append("⚠️ אם המחיצה שגויה המכשיר עלול לא לעלות. ודא שם מחיצה וקובץ נכונים.")
     return job
@@ -376,6 +394,6 @@ def plan_fastboot_erase(partition: str, on_done=None, **kw) -> Job:
     from .fastboot_bridge import FastbootCommands
     job = Job(f"Fastboot: מחיקת {partition}",
               [Step(f"erase {partition}", FastbootCommands.erase(partition))],
-              on_done=on_done, danger=True)
+              on_done=on_done, danger=True, target=partition, channel="fastboot")
     job.notes.append("⚠️ מחיקת המחיצה — הנתונים בה יאבדו.")
     return job

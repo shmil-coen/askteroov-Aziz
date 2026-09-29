@@ -338,6 +338,37 @@ QPushButton#chip {{ border: 1px solid {c['border']}; border-radius: 12px; paddin
                    min-height: 0px; background: transparent; color: {c['muted']}; }}
 QPushButton#chip:checked {{ background: {c['accent_soft']}; color: {c['accent']}; border-color: transparent; font-weight: 600; }}
 
+/* ---- הודעות בצד (ui_kit.Toast) ---- */
+QFrame#toast {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 14px; }}
+QLabel#toastText {{ font-size: 13pt; font-weight: 500; }}
+QLabel#toastDot {{ background: {c['accent']}; border-radius: 6px; }}
+QLabel#toastDot[kind="ok"] {{ background: {c['ok']}; }}
+QLabel#toastDot[kind="warn"] {{ background: {c['warn']}; }}
+QLabel#toastDot[kind="err"] {{ background: {c['danger']}; }}
+QPushButton#toastBtn {{ background: {c['accent_soft']}; color: {c['accent']}; border: none; border-radius: 9px;
+                       padding: 5px 12px; min-height: 0px; font-size: 10.5pt; font-weight: 600; }}
+QPushButton#toastBtn:hover {{ background: {c['surface2']}; }}
+QPushButton#toastClose {{ background: transparent; border: none; color: {c['muted']}; padding: 2px 6px;
+                         min-height: 0px; font-size: 12pt; }}
+QPushButton#toastClose:hover {{ color: {c['text']}; background: transparent; }}
+
+/* ---- חלון (ui_kit.Modal) — כרטיס באמצע, כמו בדמו ---- */
+QFrame#modal {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 18px; }}
+QLabel#modalTitle {{ font-size: 15pt; font-weight: 600; }}
+QLabel#modalOp {{ font-size: 11.5pt; }}
+QLabel#modalText {{ font-size: 10.5pt; }}
+QLabel#modalIcon {{ background: {c['danger_soft']}; border-radius: 19px; }}
+QLabel#modalIcon[kind="check"] {{ background: {c['ok_soft']}; }}
+QFrame#cmds {{ background: {c['input']}; border: 1px solid {c['border']}; border-radius: 12px; }}
+QLabel#cmdStep {{ color: {c['muted']}; font-size: 9.5pt; }}
+QLabel#cmdText {{ font-family: Consolas, 'Cascadia Mono', monospace; font-size: 10pt; }}
+QLabel#reason {{ background: {c['danger_soft']}; border-radius: 12px; padding: 12px 14px; font-size: 10.5pt; }}
+QLabel#okNote {{ background: {c['ok_soft']}; border-radius: 12px; padding: 12px 14px; font-size: 10.5pt; }}
+QLabel#secTitle {{ font-size: 10.5pt; font-weight: 600; }}
+QPushButton#linkBtn {{ background: transparent; border: none; color: {c['accent']}; padding: 2px 0px;
+                      min-height: 0px; font-size: 10.5pt; }}
+QPushButton#linkBtn:hover {{ background: transparent; text-decoration: underline; }}
+
 /* ---- תצוגה מקדימה של קובץ (Scatter) ---- */
 QPlainTextEdit#preview {{ font-family: Consolas, 'Cascadia Mono', monospace; }}
 

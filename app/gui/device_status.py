@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-ווידג'ט סטטוס מכשיר לפינה העליונה: דגם / מעבד + אייקון סוללה עם אחוז.
-מתעדכן חי לפי מצב החיבור (ADB / Fastboot / BROM).
+כרטיס מצב המכשיר (מעל הלשוניות): סמל מצב + כותרת ושורת משנה, וסוללה מצוירת.
+מתעדכן חי לפי מצב החיבור (ADB / Fastboot / BROM). העיצוב לפי הדמו — צבעי הערכה
+נלקחים מ-theme.py בכל ציור, כך שהחלפת ערכה מתעדכנת מיד.
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QRectF, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QBrush
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QPixmap
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+
+from . import theme
 
 
 class BatteryIcon(QWidget):
-    """אייקון סוללה קטן שמתמלא לפי אחוז; אפור כשאין נתון."""
+    """סוללה קטנה בסגנון הדמו: מסגרת דקה ומילוי לפי אחוז (בלי טקסט בפנים —
+    המספר מוצג לידה). ירוק / כתום / אדום לפי רמת הטעינה; אדום מלא כשידוע רק
+    שהסוללה נמוכה (לפי מתח ב-Fastboot)."""
 
     def __init__(self):
         super().__init__()
         self.level: int | None = None
         self.low = False
-        self.setFixedSize(46, 22)
+        self.setFixedSize(34, 14)
 
     def set_level(self, level: int | None, low: bool = False):
         self.level = level
@@ -26,56 +31,65 @@ class BatteryIcon(QWidget):
         self.update()
 
     def _color(self) -> QColor:
+        c = theme.colors()
         if self.low:
-            return QColor("#f85149")   # אדום — סוללה נמוכה
+            return QColor(c["danger"])
         if self.level is None:
-            return QColor("#8b949e")
+            return QColor(c["muted"])
         if self.level <= 15:
-            return QColor("#f85149")   # אדום
+            return QColor(c["danger"])
         if self.level <= 35:
-            return QColor("#d29922")   # כתום
-        return QColor("#3fb950")       # ירוק
+            return QColor(c["warn"])
+        return QColor(c["ok"])
 
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        w, h = self.width(), self.height()
-        body = QRectF(1, 3, w - 8, h - 6)     # גוף הסוללה
-        cap = QRectF(w - 6, h / 2 - 4, 4, 8)  # הראש הקטן
-        border = QColor("#6e7681")
-        p.setPen(QPen(border, 1.4))
+        body = QRectF(0.75, 0.75, self.width() - 1.5, self.height() - 1.5)
+        p.setPen(QPen(QColor(theme.colors()["muted"]), 1.5))
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.drawRoundedRect(body, 3, 3)
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(border))
-        p.drawRoundedRect(cap, 1, 1)
-        # מילוי לפי אחוז
+        p.drawRoundedRect(body, 4, 4)
+        inner = body.adjusted(2.25, 2.25, -2.25, -2.25)
         if self.level is None and self.low:
-            # אין אחוז אבל ידוע שהסוללה נמוכה (לפי מתח) — ממלאים באדום
-            p.setBrush(QBrush(self._color()))
-            p.drawRoundedRect(body.adjusted(2, 2, -2, -2), 2, 2)
-        elif self.level is not None and self.level > 0:
-            inner = body.adjusted(2, 2, -2, -2)
-            fill_w = inner.width() * (self.level / 100.0)
-            fill = QRectF(inner.x(), inner.y(), fill_w, inner.height())
+            frac = 1.0
+        elif self.level is not None:
+            frac = max(0.0, min(1.0, self.level / 100.0))
+        else:
+            frac = 0.0
+        if frac > 0:
+            w = inner.width() * frac
+            # מימין לשמאל (כמו בדמו): המילוי מתחיל מהקצה הימני
+            fill = QRectF(inner.right() - w, inner.y(), w, inner.height())
+            p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QBrush(self._color()))
             p.drawRoundedRect(fill, 2, 2)
-        # טקסט אחוז / ?
-        p.setPen(QColor("#e6edf3") if (self.level is not None or self.low) else QColor("#8b949e"))
-        f = p.font()
-        f.setPointSize(8)
-        f.setBold(True)
-        p.setFont(f)
-        txt = ("!" if self.low else "?") if self.level is None else f"{self.level}%"
-        p.drawText(body.translated(0, -2), Qt.AlignmentFlag.AlignCenter, txt)
         p.end()
 
 
+def _phone_pixmap(color: str, size: int = 22) -> QPixmap:
+    """סמל טלפון בקו דק (כמו בדמו) — לעיגול המצב שבכרטיס."""
+    pm = QPixmap(size, size)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    pen = QPen(QColor(color), 1.8)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen)
+    s = size / 24.0
+    p.drawRoundedRect(QRectF(6 * s, 2 * s, 12 * s, 20 * s), 2.5 * s, 2.5 * s)
+    p.drawLine(int(11 * s), int(18 * s), int(13 * s), int(18 * s))
+    p.end()
+    return pm
+
+
 class DeviceStatusWidget(QWidget):
-    """דגם/מעבד + אייקון סוללה, לפינה העליונה של החלון.
+    """סמל מצב + כותרת ושורת משנה (החלק הימני של כרטיס המכשיר).
+
+    הסוללה המצוירת (self.battery) שייכת לווידג'ט הזה, אבל החלון הראשי ממקם אותה
+    בנתון "סוללה" שבכרטיס.
 
     header_refresh: אות שנפלט אחרי עדכון מידע חדש — מאפשר לבעלים של הווידג'ט
-    (החלון הראשי) לסנכרן נתונים משלימים בכותרת (למשל אחוז סוללה) גם מזרימות
+    (החלון הראשי) לסנכרן נתונים משלימים בכרטיס (למשל אחוז סוללה) גם מזרימות
     שלא מדווחות סוללה בעצמן.
     """
 
@@ -84,52 +98,87 @@ class DeviceStatusWidget(QWidget):
     def __init__(self):
         super().__init__()
         lay = QHBoxLayout(self)
-        lay.setContentsMargins(6, 0, 6, 0)
-        lay.setSpacing(8)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(12)
+        self.icon = QLabel()
+        self.icon.setObjectName("devIcon")
+        self.icon.setFixedSize(44, 44)
+        self.icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.icon)
+        col = QVBoxLayout()
+        col.setSpacing(2)
         # הטקסט כשאין מכשיר — נקבע לפי ערוץ התקשורת ('אין ערוץ תקשורת פעיל' וכו')
         self._idle_text = "אין מכשיר מחובר"
         self._idle = True
-        self.text = QLabel(self._idle_text)
-        self.battery = BatteryIcon()
-        lay.addWidget(self.text)
-        lay.addWidget(self.battery)
+        self.text = QLabel()
+        self.text.setObjectName("devTitle")
+        self.sub = QLabel()
+        self.sub.setObjectName("devSub")
+        col.addWidget(self.text)
+        col.addWidget(self.sub)
+        lay.addLayout(col, 1)
+        self.battery = BatteryIcon()      # ממוקם בכרטיס על ידי החלון הראשי
+        self.battery.setVisible(False)
+        self._on = False
+        self._show_idle()
 
+    # ------------------------------------------------------------ עזרים
+    def _set_state(self, on: bool):
+        """עיגול המצב: ירוק כשמכשיר מחובר, אפור כשלא."""
+        self._on = on
+        c = theme.colors()
+        self.icon.setPixmap(_phone_pixmap(c["ok"] if on else c["muted"]))
+        self.icon.setProperty("state", "on" if on else "off")
+        self.icon.style().unpolish(self.icon)
+        self.icon.style().polish(self.icon)
+
+    def refresh_theme(self):
+        """צביעה מחדש אחרי החלפת ערכה."""
+        self._set_state(self._on)
+        self.battery.update()
+
+    def _show_idle(self):
+        # "אין ערוץ תקשורת פעיל — בחר ערוץ" → כותרת + שורת משנה (אותו טקסט, בשתי שורות)
+        title, _, sub = self._idle_text.partition(" — ")
+        self.text.setText(title)
+        self.sub.setText(sub)
+        self.sub.setVisible(bool(sub))
+        self._set_state(False)
+
+    # ------------------------------------------------------------ API
     def set_idle_text(self, text: str):
         """קובע מה מוצג כשאין מכשיר; אם כרגע אין מכשיר — מתעדכן מיד."""
         self._idle_text = text or "אין מכשיר מחובר"
         if self._idle:
-            self.text.setText(self._idle_text)
+            self._show_idle()
 
     def set_info(self, info):
         """info: DeviceInfo (מ-core.device_info)."""
         try:
             if info is None or getattr(info, "mode", "none") == "none":
                 self._idle = True
-                self.text.setText(self._idle_text)
+                self._show_idle()
                 self.battery.set_level(None)
                 self.battery.setVisible(False)
                 self.setToolTip("")
                 return
             self._idle = False
-            parts = []
-            if getattr(info, "model", ""):
-                parts.append(info.model)
-            if getattr(info, "cpu", ""):
-                parts.append(info.cpu)
-            parts.append(f"[{info.mode_label}]")
-            # אם אין אחוז אך יש מתח סוללה (Fastboot) — מציגים אותו בטקסט
-            if getattr(info, "battery", None) is None and getattr(info, "extra", ""):
-                parts.append(info.extra)
-            self.text.setText("  ·  ".join(parts))
-            self.battery.setVisible(True)   # הווידג'ט חוזר גם אחרי "אין מכשיר"
+            self.text.setText(getattr(info, "model", "") or "מכשיר מחובר")
+            # מתח הסוללה (Fastboot) מוצג בנתון "סוללה" שבכרטיס — לא כאן (וגם בבועת העזרה)
+            self.sub.setText(f"ערוץ {info.mode_label}")
+            self.sub.setVisible(True)
+            self._set_state(True)
             low = info.battery_too_low() if hasattr(info, "battery_too_low") else False
-            self.battery.set_level(getattr(info, "battery", None), low=low)
+            level = getattr(info, "battery", None)
+            self.battery.set_level(level, low=low)
+            # הסוללה המצוירת — רק כשיש אחוז (או כשידוע שהיא נמוכה); אחרת רק הטקסט
+            self.battery.setVisible(level is not None or low)
             tip = info.mode_label
             if getattr(info, "extra", ""):
                 tip += "  |  " + info.extra
-            if getattr(info, "battery", None) is None:
+            if level is None:
                 tip += "  |  אין נתון סוללה במצב זה"
             self.setToolTip(tip)
         finally:
-            # בכל מקרה (כולל "אין מכשיר") — הבעלים מסנכרן את הסוללה בכותרת
+            # בכל מקרה (כולל "אין מכשיר") — הבעלים מסנכרן את הסוללה בכרטיס
             self.header_refresh.emit()

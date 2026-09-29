@@ -228,6 +228,25 @@ class _ToggleSwitch(QAbstractButton):
         p.end()
 
 
+class _StatValue(QLabel):
+    """ערך בכרטיס המכשיר (מעבד / סוללה), כמו בדמו: שלושת הנתונים קבועים בכרטיס,
+    וכשאין נתון מוצג "—" במקום שהערך ייעלם. כך הקוד שמעדכן אותם (setText /
+    setVisible / clear) נשאר בדיוק כמו שהוא."""
+
+    def __init__(self):
+        super().__init__("—")
+        self.setObjectName("statValue")
+
+    def setVisible(self, visible: bool) -> None:
+        if not visible:
+            self.setText("—")
+            self.setStyleSheet("")
+        super().setVisible(True)
+
+    def clear(self) -> None:
+        self.setText("—")
+
+
 class _TextEditDialog(QDialog):
     """עורך טקסט פשוט לעריכת קובץ שנמשך מהמכשיר."""
 
@@ -609,7 +628,14 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         self.toolbar = tb
         self.addToolBar(tb)
-        # בנק הסקטארים בפס העליון: סמל + כפתור — בקצה הימני (ראשונים בתוספת ב-RTL)
+        # לוגו התוכנה — בקצה הימני של הפס העליון (כמו בדמו), לפני בנק הסקטארים
+        from .logo import LogoLabel
+        self.logo_label = LogoLabel()
+        tb.addWidget(self.logo_label)
+        _gap = QWidget()
+        _gap.setFixedWidth(10)
+        tb.addWidget(_gap)
+        # בנק הסקטארים בפס העליון: סמל + כפתור — מיד אחרי הלוגו (ראשונים בתוספת ב-RTL)
         from .logo import BankGlyph
         self.bank_glyph = BankGlyph()
         self.bank_glyph.setVisible(False)   # מוצג רק כשבנק הוא התצוגה הפעילה
@@ -626,6 +652,11 @@ class MainWindow(QMainWindow):
         sp.setHorizontalPolicy(QSizePolicy.Policy.Expanding)
         tb_spacer.setSizePolicy(sp)
         tb.addWidget(tb_spacer)
+        # מספר הגרסה — "גלולה" קטנה ליד גלגל השיניים (כמו בדמו)
+        self.version_pill = QLabel(f"גרסה {config.APP_VERSION}")
+        self.version_pill.setObjectName("versionPill")
+        self.version_pill.setFixedHeight(26)   # "גלולה" קטנה — לא נמתחת לגובה הפס
+        tb.addWidget(self.version_pill)
         # הגדרות — סמל בלבד (בלי המילה "הגדרות"): גרסה · אודות · סדר לשוניות גמיש.
         # ממוקם בתוספת לפני כפתורי העיצוב, כך שהם נשארים בקצה השמאלי בדיוק כמו היום.
         self.settings_action = QAction(guiicons.gear_icon(color=theme.colors()["muted"]), "", self)
@@ -691,19 +722,38 @@ class MainWindow(QMainWindow):
             self._apply_saved_tab_order()
 
         # כותרת מצב מכשיר — מעל הלשוניות: דגם · מעבד · בוטלאודר · סוללה
-        self.header = QGroupBox("מצב מכשיר")
+        # כרטיס המכשיר (כמו בדמו): סמל מצב · כותרת | מעבד · בוטלאודר · סוללה · ערוץ תקשורת.
+        # אותם רכיבים שהקוד מעדכן (cpu_header / hdr_boot / battery_header / tool_combo) —
+        # רק מסודרים בכרטיס.
+        self.header = QFrame()
+        self.header.setObjectName("deviceCard")
         hl = QHBoxLayout(self.header)
-        hl.setContentsMargins(10, 4, 10, 4)
+        hl.setContentsMargins(20, 14, 20, 14)
+        hl.setSpacing(22)
         self.device_status = DeviceStatusWidget()
+        self.device_status.setMinimumWidth(250)
         hl.addWidget(self.device_status)
-        hl.addStretch(1)
-        hl.addWidget(QLabel("בוטלאודר:"))
+        _vsep = QFrame()
+        _vsep.setObjectName("vsep")
+        _vsep.setFixedSize(1, 40)
+        hl.addWidget(_vsep)
+        # שם המעבד — מסונכרן מכל ערוץ זיהוי (GPT של mtkclient / ADB / Fastboot)
+        self.cpu_header = _StatValue()
+        hl.addWidget(self._stat_block("מעבד", self.cpu_header))
         self.hdr_boot = QLabel("—")
+        self.hdr_boot.setObjectName("statValue")
         self.hdr_boot.setToolTip("מצב הבוטלאודר/אבטחה — מתעדכן אחרי בדיקת אבטחה או קריאת מידע")
-        hl.addWidget(self.hdr_boot)
-        hl.addSpacing(16)
-        hl.addWidget(QLabel("ערוץ תקשורת:"))
+        hl.addWidget(self._stat_block("בוטלאודר", self.hdr_boot))
+        # סוללה — הסוללה המצוירת + אחוז (ADB) או מתח (Fastboot); "—" כשאין נתון.
+        # מסונכרן מהמידע החי העדכני ביותר גם אחרי פעולות שלא מדווחות סוללה
+        self.battery_header = _StatValue()
+        hl.addWidget(self._stat_block("סוללה", self.battery_header, lead=self.device_status.battery))
+        hl.addStretch(1)
+        _chan_lbl = QLabel("ערוץ תקשורת")
+        _chan_lbl.setObjectName("chanLabel")
+        hl.addWidget(_chan_lbl)
         self.tool_combo = QComboBox()
+        self.tool_combo.setMinimumWidth(180)
         for text, key in (("לא נבחר", "none"), ("אוטומטי", "auto"), ("ADB", "adb"),
                           ("Fastboot", "fastboot"), ("mtkclient (BROM)", "brom")):
             self.tool_combo.addItem(text, key)
@@ -713,53 +763,73 @@ class MainWindow(QMainWindow):
             "'אוטומטי' – מתחבר דרך הערוץ הראשון שמזהה את המכשיר, ונשאר בו.")
         self.tool_combo.currentIndexChanged.connect(self._on_tool_combo)
         hl.addWidget(self.tool_combo)
-        # סוללה בכותרת — מוצג רק כשיש נתון (אחוז ב-ADB / מתח ב-Fastboot);
-        # מסונכרן מהמידע החי העדכני ביותר גם אחרי פעולות שלא מדווחות סוללה
-        self.battery_header = QLabel()
-        self.battery_header.setVisible(False)
-        hl.addWidget(self.battery_header)
-        # שם המעבד בכותרת — מסונכרן מכל ערוץ זיהוי (GPT של mtkclient / ADB / Fastboot)
-        # ונשאר מוצג כל עוד המכשיר מחובר
-        self.cpu_header = QLabel()
-        self.cpu_header.setVisible(False)
-        hl.addWidget(self.cpu_header)
 
-        # שורת התקדמות — הועלתה למעלה (מתחת לכותרת, מעל הלשוניות)
-        progbar = QWidget()
+        # שורת המצב — בתחתית (כמו בדמו): נקודת מצב + טקסט · מד התקדמות דק · בטל פעולה
+        progbar = QFrame()
+        progbar.setObjectName("statusCard")
+        progbar.setFixedHeight(50)
         bl = QHBoxLayout(progbar)
-        bl.setContentsMargins(0, 0, 0, 0)
-        col = QVBoxLayout()
+        bl.setContentsMargins(16, 0, 16, 0)
+        bl.setSpacing(16)
+        self.status_dot = QLabel()
+        self.status_dot.setObjectName("statusDot")
+        self.status_dot.setFixedSize(8, 8)
+        bl.addWidget(self.status_dot)
+        self.status_label = QLabel("מוכן")
+        self.status_label.setMinimumWidth(280)
+        bl.addWidget(self.status_label)
         self.progress = QProgressBar()
+        self.progress.setObjectName("statusProgress")
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        self.status_label = QLabel("מוכן")
-        col.addWidget(self.progress)
-        col.addWidget(self.status_label)
-        bl.addLayout(col, 1)
+        self.progress.setTextVisible(False)   # האחוזים מוצגים בטקסט המצב
+        bl.addWidget(self.progress, 1)
         self.cancel_btn = QPushButton("⏹ בטל פעולה")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._cancel_job)
         bl.addWidget(self.cancel_btn)
+        self._progress_state("idle")
 
         central = QWidget()
         cl = QVBoxLayout(central)
-        # שוליים תחתונים גדולים — מרימים את התוכן (וכפתורי הצריבה) מעל תחתית החלון
-        cl.setContentsMargins(9, 9, 9, 26)
-        # לוגו התוכנה — שורה משלו, מרוכז במרכז החלון במדויק (stretch שווים משני צדדים)
-        logo_row = QHBoxLayout()
-        logo_row.addStretch(1)
-        from .logo import LogoLabel
-        self.logo_label = LogoLabel()
-        logo_row.addWidget(self.logo_label)
-        logo_row.addStretch(1)
-        cl.addLayout(logo_row)
+        # ריווח כמו בדמו: שוליים 24/18 ומרווח 14 בין הכרטיס, הלשוניות ושורת המצב
+        cl.setContentsMargins(24, 18, 24, 18)
+        cl.setSpacing(14)
 
         cl.addWidget(self.header)
         cl.addWidget(self.tabs, 1)
         cl.addWidget(self.bank_tab, 1)   # מוצג רק כשבנק הסקטארים מופעל מהפס העליון
         self.bank_tab.hide()
-        cl.addWidget(progbar)   # מד ההתקדמות בתחתית (קצת גבוה מהמקור)
+        cl.addWidget(progbar)   # שורת המצב בתחתית
         self.setCentralWidget(central)
+
+    def _stat_block(self, caption: str, value: QLabel, lead: QWidget | None = None) -> QWidget:
+        """נתון בכרטיס המכשיר (כמו בדמו): כותרת קטנה מעל, והערך מתחתיה.
+        lead — ווידג'ט שמופיע לפני הערך (למשל הסוללה המצוירת)."""
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(3)
+        cap = QLabel(caption)
+        cap.setObjectName("statCaption")
+        v.addWidget(cap)
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        if lead is not None:
+            row.addWidget(lead, 0, Qt.AlignmentFlag.AlignVCenter)
+        row.addWidget(value)
+        row.addStretch(1)
+        v.addLayout(row)
+        return box
+
+    def _progress_state(self, state: str):
+        """מצב שורת המצב (כמו בדמו): צבע המילוי במד ההתקדמות וצבע נקודת המצב.
+        run = פעולה רצה (כחול) · ok = הסתיימה בהצלחה (ירוק) · err = נכשלה/בוטלה (אדום) ·
+        idle = מוכן (ירוק)."""
+        self.progress.setStyleSheet(theme.progress_qss({"ok": "ok", "err": "cancel"}.get(state, "")))
+        self.status_dot.setProperty("state", state)
+        self.status_dot.style().unpolish(self.status_dot)
+        self.status_dot.style().polish(self.status_dot)
 
     def _toggle_bank_view(self):
         """הצגה/הסתרה של בנק הסקטארים — הבנק מחליף את שורת הלשוניות כשהוא פעיל."""
@@ -998,6 +1068,10 @@ class MainWindow(QMainWindow):
         for b in self.findChildren(QPushButton):
             if b.property("iconKind") == "globe":
                 b.setIcon(guiicons.globe_icon(color=c["accent"]))
+        if hasattr(self, "device_status"):
+            self.device_status.refresh_theme()   # עיגול המצב והסוללה בכרטיס המכשיר
+        if hasattr(self, "logo_label"):
+            self.logo_label.update()             # הלוגו מצויר בצבעי הערכה
 
     def _recolor_tables(self):
         self._refresh_ports()
@@ -1995,6 +2069,11 @@ class MainWindow(QMainWindow):
             # אין מכשיר — המעבד בכותרת לא נשאר מחיבור קודם
             self.cpu_header.clear()
             self.cpu_header.setVisible(False)
+        elif getattr(info, "cpu", ""):
+            # המעבד בכרטיס המכשיר — מכל ערוץ, גם ADB (תצוגה בלבד: לא משנה את
+            # שם המעבד בלשונית Scatter; זה נעשה רק מ-GPT / Fastboot כמו קודם)
+            self.cpu_header.setText(info.cpu)
+            self.cpu_header.setToolTip(f"מעבד שזוהה מהמכשיר: {info.cpu}")
         if info is None or getattr(info, "mode", "none") != "fastboot":
             self._fb_warned = False
             if hasattr(self, "fb_auto_label"):
@@ -2343,7 +2422,7 @@ class MainWindow(QMainWindow):
     def _busy_progress(self, on: bool):
         """מד התקדמות 'רץ' (marquee) כשאין אחוזים — כדי שתמיד יהיה סימן חיים."""
         if on:
-            self.progress.setStyleSheet("")   # חוזר לצבע רגיל בתחילת פעולה
+            self._progress_state("run")   # פעולה התחילה — כחול
             self.progress.setRange(0, 0)   # מצב בלתי-מסויים: הפס נע הלוך ושוב
         else:
             self.progress.setRange(0, 100)
@@ -2361,7 +2440,7 @@ class MainWindow(QMainWindow):
         if job_manager.busy:
             return
         self._busy_progress(False)
-        self.progress.setStyleSheet("")
+        self._progress_state("idle")
         self.status_label.setText("מוכן")
 
     def _show_battery_warning(self, note: str):
@@ -2425,7 +2504,7 @@ class MainWindow(QMainWindow):
     def _on_reconnect_hint(self, payload):
         """כשל שדורש חיבור מחדש — הודעה בולטת למשתמש (לא חוסמת)."""
         _name, delay = payload
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.status_label.setText(
             f"🔌 החיבור נכשל — נתק וחבר את המכשיר במצב BROM. ממתין לחיבור עד {int(delay)} שניות…")
 
@@ -2444,7 +2523,7 @@ class MainWindow(QMainWindow):
         if ok:
             self.status_label.setText(f"{name}: הסתיים בהצלחה")
             self.progress.setValue(100)
-            self.progress.setStyleSheet(theme.progress_qss("ok"))
+            self._progress_state("ok")
             log.info(f"job_done (thread ראשי): {name} — לפני דיאלוג הצלחה")
             self._show_success(name)
             log.info(f"job_done: {name} — אחרי דיאלוג הצלחה")
@@ -2453,8 +2532,10 @@ class MainWindow(QMainWindow):
                 self._offer_bootloader_check()
         elif cancelled:
             self.status_label.setText(f"{name}: בוטל על ידי המשתמש")
+            self._progress_state("err")
         else:
             self.status_label.setText(f"{name}: ❌ נכשל")
+            self._progress_state("err")
             self._show_failure(name)
         if getattr(self, "_clear_timer", None):
             self._clear_timer.start()   # ינוקה אחרי 30 שניות
@@ -2590,7 +2671,7 @@ class MainWindow(QMainWindow):
     def _show_cancelling(self):
         """חיווי 'מבטל…' — מד התקדמות עם מילוי אדום עדין שנע לאורך הגליל, עד סיום הביטול."""
         self.progress.setRange(0, 0)   # marquee — נע לאורך כל הגליל
-        self.progress.setStyleSheet(theme.progress_qss("cancel"))
+        self._progress_state("err")
         self.status_label.setText("🛑 מבטל…")
 
     def _retry_now(self, action):
@@ -3309,7 +3390,7 @@ class MainWindow(QMainWindow):
         # מד התקדמות להסרה
         if getattr(self, "_clear_timer", None):
             self._clear_timer.stop()
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.progress.setRange(0, len(pkgs))
         self.progress.setValue(0)
         self._adb_busy = True     # הבדיקה האוטומטית ממתינה בזמן ההסרה
@@ -3377,7 +3458,7 @@ class MainWindow(QMainWindow):
         if self.progress.maximum() == 0:
             self.progress.setRange(0, 1)
         self.progress.setValue(self.progress.maximum())
-        self.progress.setStyleSheet(theme.progress_qss("ok") if ok else "")
+        self._progress_state("ok" if ok else "err")
         self.status_label.setText(f"{title}: {'הסתיים בהצלחה' if ok else '❌ נכשל'}")
         if getattr(self, "_clear_timer", None):
             self._clear_timer.start()
@@ -3449,7 +3530,7 @@ class MainWindow(QMainWindow):
         self.adb_pkgs_view.setPlainText("מתקין… (התקנה עשויה להימשך עד דקה)")
         if getattr(self, "_clear_timer", None):
             self._clear_timer.stop()
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.progress.setRange(0, 0)   # 'רץ' עד סיום ההתקנה
 
         def work():
@@ -3483,7 +3564,7 @@ class MainWindow(QMainWindow):
             return
         keep_data = (keep == _NO)
         self._say("info", f"מסיר ומתקין מחדש: {apk.name}")
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.progress.setRange(0, 0)
         self._adb_busy = True
 
@@ -3519,7 +3600,7 @@ class MainWindow(QMainWindow):
                 _YES | _NO, _NO) != _YES:
             return
         self._say("info", f"מעניק {kind} ל-{pkg}")
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.progress.setRange(0, 0)
         self._adb_busy = True
 
@@ -3786,7 +3867,7 @@ class MainWindow(QMainWindow):
         self._apps_loading = True
         if getattr(self, "_clear_timer", None):
             self._clear_timer.stop()
-        self.progress.setStyleSheet("")
+        self._progress_state("run")
         self.progress.setRange(0, 0)   # 'רץ' עד שמתקבלת הרשימה
 
         def work():
@@ -4048,7 +4129,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText(f"טוען אפליקציות… {done}/{total} ({done * 100 // total}%)")
         if done == total:
             self.status_label.setText(f"נטענו {total} אפליקציות")
-            self.progress.setStyleSheet(theme.progress_qss("ok"))
+            self._progress_state("ok")
             if getattr(self, "_clear_timer", None):
                 self._clear_timer.start()
 
@@ -4626,10 +4707,10 @@ class MainWindow(QMainWindow):
             return ""
         battery = getattr(info, "battery", None)
         if battery is not None:
-            return f"🔋 {battery}%"
+            return f"{battery}%"
         if (getattr(info, "mode", "") == "fastboot"
                 and getattr(info, "voltage_mv", None) is not None):
-            return f"🔋 {info.voltage_mv}mV"
+            return f"{info.voltage_mv}mV"
         return ""
 
     def _sync_battery_header(self, info: "devinfo.DeviceInfo | None" = None):

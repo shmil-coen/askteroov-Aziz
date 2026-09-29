@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-לוגו התוכנה "הסקטארוב" — ווידג'ט מצויר: סמל שבב MediaTek עם ברק (Flash) מצויר
-בהתאמה אישית, לצד המילה "הסקטארוב" בגרדיאנט בהיר (סגנון כותרות AI — לא כהה).
+לוגו התוכנה "הסקטארוב" — ווידג'ט מצויר, בסגנון הדמו: סמל שבב בקו דק עם ברק במרכזו,
+בצבע ההדגשה של הערכה, ולצידו המילה "הסקטארוב" בצבע הטקסט של הערכה.
+הצבעים נלקחים מ-theme.py בכל ציור — כך שהחלפת ערכה מתעדכנת מיד.
 """
 from __future__ import annotations
 
@@ -18,79 +19,65 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QLabel, QWidget
 
+from . import theme
+
 # סדר עדיפות גופנים עבריים אסתטיים; אחרון — גופן מערכת מובטח
 _FONT_CANDIDATES = ("Gisha", "Aharoni", "David Libre", "Rubik", "Segoe UI")
 
 
 def _logo_font() -> QFont:
     families = set(QFontDatabase.families())
+    f = QFont()
     for name in _FONT_CANDIDATES:
         if name in families:
             f = QFont(name)
-            f.setPointSize(18)
-            f.setBold(True)
-            f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
-            return f
-    f = QFont()
-    f.setPointSize(18)
+            break
+    f.setPointSize(16)        # ~21px, כמו בדמו
     f.setBold(True)
-    f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
+    f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 0.5)
     return f
 
 
 class LogoLabel(QLabel):
-    """סמל + 'הסקטארוב' — ציור מלא בהתאמה אישית."""
+    """סמל + 'הסקטארוב' — בקצה הימני של הפס העליון (כמו בדמו)."""
+
+    SYMBOL = 30   # גודל הסמל בפיקסלים
+    GAP = 10      # רווח בין הסמל לטקסט
 
     def __init__(self, text: str = "הסקטארוב"):
         super().__init__(text)
         self.setFont(_logo_font())
         self.setFixedHeight(40)
-        self.setMinimumWidth(200)
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setFixedWidth(self.fontMetrics().horizontalAdvance(text) + self.SYMBOL + self.GAP + 8)
         self.setToolTip("הסקטארוב — ערכת ניהול מכשירי MediaTek")
 
     # ------------------------------------------------------------ הסמל
     def _draw_symbol(self, p: QPainter, rect: QRectF) -> None:
-        """שבב עם פינים וברק במרכזו — סמל התוכנה (ניהול שבבי MediaTek)."""
-        # פיני השבב
-        p.setPen(QPen(QColor("#7dd3fc"), 1.6))
+        """שבב בקו דק עם פינים וברק במרכזו (כמו בדמו) — בצבע ההדגשה."""
+        s = rect.width() / 24.0
+        ox, oy = rect.left(), rect.top()
+
+        def pt(x: float, y: float) -> QPointF:
+            return QPointF(ox + x * s, oy + y * s)
+
+        pen = QPen(QColor(theme.colors()["accent"]), 1.7)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        pin_len = rect.width() * 0.14
-        gap = rect.width() * 0.30
-        for i in range(3):
-            x = rect.left() + rect.width() * (0.25 + 0.25 * i)
-            p.drawLine(QPointF(x, rect.top()), QPointF(x, rect.top() + pin_len))
-            p.drawLine(QPointF(x, rect.bottom()), QPointF(x, rect.bottom() - pin_len))
-        for i in range(2):
-            y = rect.top() + rect.height() * (0.35 + 0.30 * i)
-            p.drawLine(QPointF(rect.left(), y), QPointF(rect.left() + pin_len, y))
-            p.drawLine(QPointF(rect.right(), y), QPointF(rect.right() - pin_len, y))
-        # גוף השבב — מסגרת כפולה
-        body = rect.adjusted(gap * 0.55, gap * 0.55, -gap * 0.55, -gap * 0.55)
-        grad = QLinearGradient(body.topLeft(), body.bottomRight())
-        grad.setColorAt(0.0, QColor(56, 189, 248, 60))
-        grad.setColorAt(1.0, QColor(129, 140, 248, 60))
-        p.setBrush(grad)
-        p.setPen(QPen(QColor("#38bdf8"), 2))
-        p.drawRoundedRect(body, 6, 6)
-        p.setPen(QPen(QColor(125, 211, 252, 120), 1))
-        p.drawRoundedRect(body.adjusted(3, 3, -3, -3), 4, 4)
-        # הברק במרכז השבב — Flash
-        cx, cy = body.center().x(), body.center().y()
-        s = body.width() * 0.30
-        bolt = QPainterPath()
-        bolt.moveTo(cx + s * 0.25, cy - s * 0.9)
-        bolt.lineTo(cx - s * 0.45, cy + s * 0.1)
-        bolt.lineTo(cx - s * 0.02, cy + s * 0.1)
-        bolt.lineTo(cx - s * 0.25, cy + s * 0.9)
-        bolt.lineTo(cx + s * 0.45, cy - s * 0.12)
-        bolt.lineTo(cx + s * 0.02, cy - s * 0.12)
-        bolt.closeSubpath()
-        bolt_grad = QLinearGradient(0, cy - s, 0, cy + s)
-        bolt_grad.setColorAt(0.0, QColor("#fde68a"))
-        bolt_grad.setColorAt(1.0, QColor("#f59e0b"))
-        p.setBrush(bolt_grad)
-        p.setPen(Qt.PenStyle.NoPen)
+        # גוף השבב
+        p.drawRoundedRect(QRectF(pt(5, 5), pt(19, 19)), 3 * s, 3 * s)
+        # פינים — שניים בכל צד
+        for a in (9, 15):
+            p.drawLine(pt(a, 2), pt(a, 5))
+            p.drawLine(pt(a, 19), pt(a, 22))
+            p.drawLine(pt(2, a), pt(5, a))
+            p.drawLine(pt(19, a), pt(22, a))
+        # הברק במרכז — Flash
+        bolt = QPainterPath(pt(12.8, 8.5))
+        bolt.lineTo(pt(10.5, 12))
+        bolt.lineTo(pt(13.5, 12))
+        bolt.lineTo(pt(11.2, 15.5))
         p.drawPath(bolt)
 
     # ------------------------------------------------------------ הציור
@@ -100,25 +87,12 @@ class LogoLabel(QLabel):
         p.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         p.setFont(self.font())
         w, h = self.width(), self.height()
-
-        # RTL: הסמל בקצה הימני, הטקסט משמאלו — במרכז השטח הנותר
-        fm = p.fontMetrics()
-        text_w = fm.horizontalAdvance(self.text())
-        sym = 26
-        margin = 4
-        sym_rect = QRectF(w - margin - sym, (h - sym) / 2, sym, sym)
-        self._draw_symbol(p, sym_rect)
-
-        # הטקסט: צל עדין + גרדיאנט בהיר (כסף → תכלת → לילך)
-        text_rect = QRectF(margin, 0, w - margin * 2 - sym - 10, h)
-        p.setPen(QColor(15, 23, 42, 140))
-        p.drawText(text_rect.translated(0, 2), Qt.AlignmentFlag.AlignCenter, self.text())
-        tg = QLinearGradient(0, 0, 0, h)
-        tg.setColorAt(0.0, QColor("#f8fafc"))
-        tg.setColorAt(0.5, QColor("#bae6fd"))
-        tg.setColorAt(1.0, QColor("#c4b5fd"))
-        p.setPen(QPen(QBrush(tg), 1))   # גרדיאנט לטקסט — דרך QPen+QBrush
-        p.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self.text())
+        # RTL: הסמל בקצה הימני, הטקסט משמאלו
+        sym = self.SYMBOL
+        self._draw_symbol(p, QRectF(w - sym, (h - sym) / 2, sym, sym))
+        text_rect = QRectF(0, 0, w - sym - self.GAP, h)
+        p.setPen(QColor(theme.colors()["text"]))
+        p.drawText(text_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.text())
         p.end()
 
 

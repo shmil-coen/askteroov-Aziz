@@ -33,7 +33,7 @@ PALETTES = {
         "text": "#e8eaef", "muted": "#a3aab6",
         "accent": "#6ea2ff", "accent_soft": "rgba(110,162,255,0.14)",
         "btn": "#2f6ee0", "btn_hover": "#3a7af0", "btn_pressed": "#2860c8", "btn_text": "#ffffff",
-        "ok": "#4cc68a", "warn": "#e8b04a", "danger": "#e5534b",
+        "ok": "#4cc68a", "ok_soft": "rgba(76,198,138,0.13)", "warn": "#e8b04a", "danger": "#e5534b",
         "danger_btn": "#c8322b", "danger_hover": "#d63b33", "danger_pressed": "#b02a24",
         "warn_btn": "#a15c00", "warn_hover": "#b06600", "warn_pressed": "#8a4f00",
         "disabled": "#6b7280",
@@ -45,7 +45,7 @@ PALETTES = {
         "text": "#e9f0f9", "muted": "#9fb3cd",
         "accent": "#72b0ff", "accent_soft": "rgba(114,176,255,0.15)",
         "btn": "#5ea4ff", "btn_hover": "#74b1ff", "btn_pressed": "#4a93f0", "btn_text": "#08182c",
-        "ok": "#4fd092", "warn": "#f0b64e", "danger": "#f06a60",
+        "ok": "#4fd092", "ok_soft": "rgba(79,208,146,0.14)", "warn": "#f0b64e", "danger": "#f06a60",
         "danger_btn": "#d23a31", "danger_hover": "#e0443a", "danger_pressed": "#b8302a",
         "warn_btn": "#a15c00", "warn_hover": "#b06600", "warn_pressed": "#8a4f00",
         "disabled": "#6f86a3",
@@ -122,9 +122,9 @@ def progress_qss(state: str = "") -> str:
     """צבע מילוי מד ההתקדמות לפי מצב: "" רגיל · "ok" הצלחה · "cancel" ביטול/כשלון."""
     c = colors()
     if state == "ok":
-        return f"QProgressBar::chunk {{ background-color: {c['ok']}; border-radius: 6px; }}"
+        return f"QProgressBar::chunk {{ background-color: {c['ok']}; border-radius: 3px; }}"
     if state == "cancel":
-        return f"QProgressBar::chunk {{ background-color: {c['danger']}; border-radius: 6px; }}"
+        return f"QProgressBar::chunk {{ background-color: {c['danger']}; border-radius: 3px; }}"
     return ""
 
 
@@ -248,6 +248,29 @@ QScrollBar::handle:vertical {{ min-height: 30px; }}
 QScrollBar::handle:horizontal {{ min-width: 30px; }}
 QScrollBar::add-line, QScrollBar::sub-line {{ width: 0; height: 0; }}
 QScrollBar::add-page, QScrollBar::sub-page {{ background: none; }}
+
+/* ---- כרטיס המכשיר (כמו בדמו) ---- */
+QFrame#deviceCard {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 16px; }}
+QFrame#vsep {{ background: {c['border']}; border: none; }}
+QLabel#devIcon {{ background: {c['surface2']}; border-radius: 12px; }}
+QLabel#devIcon[state="on"] {{ background: {c['ok_soft']}; }}
+QLabel#devTitle {{ font-size: 13pt; font-weight: 600; }}
+QLabel#devSub {{ color: {c['muted']}; font-size: 10pt; }}
+QLabel#statCaption {{ color: {c['muted']}; font-size: 9pt; }}
+QLabel#statValue {{ font-size: 11pt; font-weight: 600; }}
+QLabel#chanLabel {{ color: {c['muted']}; font-size: 10pt; }}
+
+/* ---- פס עליון: גרסה ---- */
+QLabel#versionPill {{ color: {c['muted']}; background: {c['surface2']}; border-radius: 10px;
+                     padding: 4px 10px; font-size: 9pt; }}
+
+/* ---- שורת המצב (כמו בדמו) ---- */
+QFrame#statusCard {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 12px; }}
+QLabel#statusDot {{ background: {c['ok']}; border-radius: 4px; }}
+QLabel#statusDot[state="run"] {{ background: {c['accent']}; }}
+QLabel#statusDot[state="err"] {{ background: {c['danger']}; }}
+QProgressBar#statusProgress {{ min-height: 7px; max-height: 7px; border-radius: 3px; }}
+QProgressBar#statusProgress::chunk {{ border-radius: 3px; }}
 
 /* ---- תוויות מיוחדות (לפי objectName) ---- */
 QLabel#noteInfo {{ background: {c['accent_soft']}; border: 1px solid {c['accent']}; border-radius: 10px; padding: 10px; }}

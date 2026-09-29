@@ -380,7 +380,7 @@ def validate_scatter(path: Path) -> list[str]:
     # פורמט פיזי: שורות CRLF — LF בלבד גורם ל-SP Flash Tool להחזיר 5011
     if "\r\n" not in text:
         problems.append(
-            "הקובץ אינו בקידוד CRLF (שורות Windows) — SP Flash Tool עלול לדחות אותו (5011)")
+            "הקובץ אינו בקידוד CRLF (שורות Windows)\u200f — SP Flash Tool עלול לדחות אותו (5011)")
     if not text.endswith("\r\n"):
         problems.append("הקובץ אינו מסתיים בשורה חדשה")
 

@@ -314,6 +314,32 @@ QPushButton#iconBtn {{ padding: 0px; min-width: 38px; max-width: 38px; min-heigh
 QTextEdit#quietBox {{ background: transparent; border: none; color: {c['muted']}; padding: 0px; }}
 QLabel#noticeWarn {{ background: {c['warn_soft']}; border-radius: 12px; padding: 12px 14px; }}
 QLabel#noticeInfo {{ background: {c['accent_soft']}; border-radius: 12px; padding: 12px 14px; }}
+QLabel#noticeDanger {{ background: {c['danger_soft']}; border-radius: 12px; padding: 12px 14px; }}
+
+/* ---- צעדים ממוספרים · מצב ריק עם כפתור · תיבת מצב · רשימת בדיקה ---- */
+QLabel#stepNum {{ background: {c['accent_soft']}; color: {c['accent']}; border-radius: 11px;
+                 font-size: 9pt; font-weight: 600; }}
+QLabel#stepText {{ font-size: 10.5pt; }}
+QFrame#emptyBox {{ border: 1px dashed {c['border']}; border-radius: 14px; background: transparent; }}
+QLabel#emptyText {{ color: {c['muted']}; font-size: 10.5pt; }}
+QFrame#statusBox {{ background: {c['surface2']}; border-radius: 12px; }}
+QFrame#statusBox[state="ok"] {{ background: {c['ok_soft']}; }}
+QFrame#statusBox[state="err"] {{ background: {c['danger_soft']}; }}
+QLabel#statusMark {{ background: {c['border']}; border-radius: 16px; }}
+QLabel#statusMark[state="ok"] {{ background: {c['ok']}; }}
+QLabel#statusMark[state="err"] {{ background: {c['danger']}; }}
+QLabel#statusTitle {{ font-size: 11pt; font-weight: 600; }}
+QLabel#statusSub {{ color: {c['muted']}; font-size: 10pt; }}
+QLabel#checkMark {{ background: {c['surface2']}; color: {c['muted']}; border-radius: 10px; font-size: 9pt; }}
+QLabel#checkMark[on="true"] {{ background: {c['ok_soft']}; color: {c['ok']}; font-weight: 600; }}
+
+/* ---- כפתורי סינון (לוג) ---- */
+QPushButton#chip {{ border: 1px solid {c['border']}; border-radius: 12px; padding: 4px 12px;
+                   min-height: 0px; background: transparent; color: {c['muted']}; }}
+QPushButton#chip:checked {{ background: {c['accent_soft']}; color: {c['accent']}; border-color: transparent; font-weight: 600; }}
+
+/* ---- תצוגה מקדימה של קובץ (Scatter) ---- */
+QPlainTextEdit#preview {{ font-family: Consolas, 'Cascadia Mono', monospace; }}
 
 /* ---- סייר קבצים: נתיב שאפשר ללחוץ על כל חלק בו ---- */
 QFrame#crumbs {{ background: {c['input']}; border: 1px solid {c['border']}; border-radius: 10px; }}

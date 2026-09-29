@@ -17,6 +17,7 @@ from PySide6.QtGui import QAction, QActionGroup, QColor, QDesktopServices, QFont
 from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
+    QButtonGroup,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
@@ -759,7 +760,7 @@ class MainWindow(QMainWindow):
         self.tool_combo = QComboBox()
         self.tool_combo.setMinimumWidth(180)
         for text, key in (("לא נבחר", "none"), ("אוטומטי", "auto"), ("ADB", "adb"),
-                          ("Fastboot", "fastboot"), ("mtkclient (BROM)", "brom")):
+                          ("Fastboot", "fastboot"), ("mtkclient\u200f (BROM)\u200f", "brom")):
             self.tool_combo.addItem(text, key)
         self.tool_combo.setToolTip(
             "התוכנה תתחבר למכשיר רק דרך הערוץ שנבחר.\n"
@@ -867,7 +868,9 @@ class MainWindow(QMainWindow):
             bar_font = QFont(QApplication.instance().font())
             bar_font.setPointSizeF(round(base * 1.25, 1))
             self.tabs.tabBar().setFont(bar_font)   # הגופן נשלט מכאן (כדי שהקטנת הענפים תעבוד בציור)
-            self.tabs.setStyleSheet(
+            # רק על שורת הלשוניות — גיליון סגנון על כל אזור הלשוניות היה מעצב ומצייר
+            # מחדש את כל התוכן שבתוכן בכל שינוי גודל של החלון (ריצוד בפתיחה)
+            self.tabs.tabBar().setStyleSheet(
                 f"QTabBar::tab {{ min-width: {w}px; padding: 8px 10px; }}")
             self._mark_branch_tabs()
 
@@ -1100,53 +1103,27 @@ class MainWindow(QMainWindow):
         return sa
 
     def _tab_device(self) -> QWidget:
+        """לשונית mtkclient (לפי הדמו): זיהוי מכשיר · סביבת פייתון · פורטים · דרייברים."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        b_help = QPushButton("הוראות BROM")
+        b_help.clicked.connect(lambda: self._show_mode_instructions("brom"))
+        v.addWidget(ui_kit.tab_header(
+            "mtkclient", "זיהוי המכשיר במצב BROM/Preloader, דרייברים וסביבת העבודה.",
+            "mtkclient (BROM)", extra=(b_help,)))
+        grid = self._cards_grid()
 
-        gb = QGroupBox("פורטים מחוברים (ניטור חי)")
-        gv = QVBoxLayout(gb)
-        self.ports_table = QTableWidget(0, 5)
-        self.ports_table.setHorizontalHeaderLabels(["פורט", "תיאור", "מצב", "VID", "PID"])
-        self.ports_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.ports_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.ports_table.setMinimumHeight(95)
-        self.ports_table.setMaximumHeight(130)
-        # מצמצם גם את הרוחב: הטבלה לא נמתחת על כל השורה — נותרים שוליים צדדיים
-        ports_wrap = QHBoxLayout()
-        ports_wrap.setContentsMargins(48, 0, 48, 0)   # ~שלושת רבעי הרוחב בפועל
-        ports_wrap.addWidget(self.ports_table, 1)
-        gv.addLayout(ports_wrap)
-        btns = QHBoxLayout()
-        refresh_btn = QPushButton("🔄 רענן עכשיו")
-        refresh_btn.setToolTip("הטבלה מתעדכנת אוטומטית; השתמש רק אם נראה שהיא לא התעדכנה")
-        refresh_btn.clicked.connect(self._refresh_ports)
-        # גובה מוקטן בכשליש (הרוחב נשמר — ריווח אופקי לא משתנה)
-        refresh_btn.setMaximumHeight(28)
-        refresh_btn.setStyleSheet(
-            "QPushButton { min-height: 16px; padding-top: 2px; padding-bottom: 2px; }")
-        btns.addWidget(refresh_btn)
-        btns.addStretch(1)
-        gv.addLayout(btns)
-
-        gb2 = QGroupBox("זיהוי מכשיר (דורש חיבור מכשיר במצב BROM/Preloader)")
-        g2 = QVBoxLayout(gb2)
-        brom_help = QLabel(
-            "<b>חיבור המכשיר במצב BROM/Preloader:</b><br>"
-            "כבה את המכשיר לגמרי, ואז באחת מהדרכים:<br>"
-            "• חבר בכבל USB תוך כדי החזקת <b>Volume Down</b> "
-            "(או <b>Volume Up</b> — תלוי במכשיר).<br>"
-            "• או: חבר כשהוא כבוי; אם לא זוהה — החזק את <b>לחצן ההפעלה כ-10 שניות "
-            "תוך כדי החיבור</b>, והוא יתאפס ויזוהה אוטומטית.")
-        brom_help.setWordWrap(True)
-        brom_help.setObjectName("noteInfo")   # תיבת הסבר — צבעי הערכה (theme.py)
-        g2.addWidget(brom_help)
-        gpt_row = QHBoxLayout()
-        btn_gpt = QPushButton("קרא GPT\u200f (printgpt)\u200f")
-        btn_gpt.clicked.connect(self._read_gpt)
-        gpt_row.addWidget(btn_gpt)
-        gpt_row.addWidget(self._help_dot("gpt"))
-        gpt_row.addStretch(1)
-        g2.addLayout(gpt_row)
+        # ---- זיהוי מכשיר (קריאה בלבד)
+        c_det = ui_kit.Card("זיהוי מכשיר", "קריאת טבלת המחיצות מזהה גם את שם המעבד", "search",
+                            ui_kit.Pill("קריאה בלבד", "ok"))
+        c_det.add(ui_kit.steps_list([
+            "כבה את המכשיר לגמרי.",
+            "חבר בכבל USB תוך כדי החזקת <b>Volume Down</b> (או <b>Volume Up</b> — תלוי במכשיר).",
+            "אם לא זוהה — החזק את <b>לחצן ההפעלה כ-10 שניות תוך כדי החיבור</b>, "
+            "והוא יתאפס ויזוהה אוטומטית.",
+        ]))
         # חלופה ל-UsbDk: mtkclient דרך פורט COM (דרייבר VCOM)
         self.serial_check = QCheckBox(
             "חיבור דרך פורט COM (דרייבר MediaTek VCOM) — חלופה כש-UsbDk לא עובד")
@@ -1155,155 +1132,253 @@ class MainWindow(QMainWindow):
             "לא מצליח לדבר עם המכשיר ב-BROM.\n"
             "כשהאפשרות מסומנת, mtkclient מתחבר דרך פורט ה-COM של דרייבר ה-VCOM "
             "(--serialport), בלי UsbDk.\n"
-            "דורש: דרייבר MediaTek VCOM מותקן (כפתור ההתקנה למטה).\n"
+            "דורש: דרייבר MediaTek VCOM מותקן (בכרטיס הדרייברים).\n"
             "לא חל על בדיקת האבטחה (gettargetconfig) ועל פתיחה/נעילת seccfg — "
             "הן רצות תמיד ב-USB ישיר.")
         self.serial_check.toggled.connect(self._set_serialport)
-        g2.addWidget(self.serial_check)
-        v.addWidget(gb2)
+        c_det.add(self.serial_check)
+        btn_gpt = QPushButton("קרא טבלת מחיצות (GPT)")
+        btn_gpt.setObjectName("btnPrimary")
+        btn_gpt.clicked.connect(self._read_gpt)
+        c_det.add_action(btn_gpt)
+        c_det.add_action(self._help_dot("gpt"))
+        grid.addWidget(c_det, 0, 0)
 
-        gb3 = QGroupBox("דרייברים")
-        g3 = QHBoxLayout(gb3)
-        btn_install = QPushButton("⚙️ התקנת דרייבר UsbDk (מתוך התוכנה)")
-        btn_install.clicked.connect(self._install_usbdk)
-        btn_install_vcom = QPushButton("⚙️ התקנת דרייבר MediaTek VCOM (מתוך התוכנה)")
-        btn_install_vcom.clicked.connect(self._install_mtk_vcom)
-
-        def _small_dl(tip: str, slot):
-            b = QPushButton("\u2002הורדה")   # רווח (en space) בין סמל הכדור למילה
-            b.setIcon(guiicons.globe_icon(color=theme.colors()["accent"]))
-            b.setProperty("iconKind", "globe")   # מתעדכן בהחלפת ערכה (_refresh_button_icons)
-            b.setIconSize(QSize(16, 16))
-            b.setToolTip(tip)
-            b.clicked.connect(slot)
-            return b
-
-        btn_dl_usbdk = _small_dl("הורדה מהאתר הרשמי של UsbDk\u200f (GitHub — Daynix)\u200f",
-                                 lambda: QDesktopServices.openUrl(QUrl(_USBDK_URL)))
-        btn_link = _small_dl("הורדת דרייברי MediaTek VCOM\u200f (mtkdriver.com)\u200f",
-                             self._open_drivers_link)
-        btn_check = QPushButton("🩺 בדיקת מצב הדרייברים")
-        btn_check.setToolTip("בודק אם הדרייברים MediaTek VCOM/PreLoader ו-UsbDk "
-                             "מותקנים במחשב (קריאה בלבד).")
-        btn_check.clicked.connect(lambda: self._check_drivers("mtk"))
-        # כל הכפתורים בשורת הדרייברים — קטנים ב-7.5% מהגודל הרגיל של הכפתורים, אחיד לכולם.
-        # (גודל הכפתורים נקבע בגיליון הסגנון של התוכנה, ולכן ההקטנה נעשית גם היא בגיליון.)
-        _base_pt = QApplication.instance().font().pointSizeF()
-        _base_pt = _base_pt if _base_pt > 0 else 9.0
-        _drv_pt = round(_base_pt * theme.BUTTON_SCALE * 0.925, 2)
-        btn_fix = self._fix_driver_button()
-        for _b in (btn_install, btn_dl_usbdk, btn_install_vcom, btn_link, btn_check, btn_fix):
-            _b.setStyleSheet(f"QPushButton {{ font-size: {_drv_pt}pt; }}")
-        g3.addWidget(btn_install)
-        g3.addWidget(btn_dl_usbdk)
-        g3.addSpacing(12)
-        g3.addWidget(btn_install_vcom)
-        g3.addWidget(btn_link)
-        g3.addSpacing(12)
-        g3.addWidget(btn_check)
-        g3.addWidget(btn_fix)
-        g3.addStretch(1)
-        v.addWidget(gb3)
-        # ---- זיהוי סביבת פייתון (בדיקה בלבד)
-        gbp = QGroupBox("סביבת פייתון (בשביל mtkclient)")
-        vp = QVBoxLayout(gbp)
+        # ---- סביבת פייתון: תיבת מצב למעלה, הפירוט המלא בלחיצה
+        c_py = ui_kit.Card("סביבת פייתון", "מה ש-mtkclient צריך כדי לרוץ", "terminal")
+        self.pyenv_status = ui_kit.StatusBox("לא נבדק עדיין…")
+        c_py.add(self.pyenv_status)
+        # התקנה והורדות — מתחת לתיבת המצב (בשורת הפעולות אין להם מקום בחלון ברוחב רגיל)
+        py_inst = QHBoxLayout()
+        py_inst.setSpacing(10)
+        self.btn_auto_python = QPushButton("התקן פייתון וספריות ל-mtkclient (אוטומטי)")
+        self.btn_auto_python.setObjectName("btnSoft")
+        self.btn_auto_python.setToolTip(
+            "מוריד ומתקין את פייתון הרשמי עם PATH מסומן, ואת כל הספריות ש-mtkclient צריך — "
+            "בלי שאלות ובלי הרשאת מנהל. אם פייתון כבר מותקן — מתקין רק את הספריות.")
+        self.btn_auto_python.clicked.connect(self._auto_install_python)
+        py_inst.addWidget(self.btn_auto_python)
+        # שתי ההורדות — בתפריט; המסגרת האדומה כשפייתון חסר מופיעה על הכפתור הזה
+        self.btn_install_python = ui_kit.menu_button("הורדות", [
+            ("הורדת פייתון להתקנה (האתר הרשמי)", self._open_python_download),
+            ("הורדת פייתון נייד (MTKClient Portable)",
+             lambda: QDesktopServices.openUrl(QUrl(_MTK_PORTABLE_URL))),
+        ])
+        self.btn_install_python.setToolTip(
+            "הורדת פייתון להתקנה מהאתר הרשמי, או פייתון נייד (MTKClient Portable) — "
+            "mtkclient עם פייתון, בלי התקנה.")
+        self._style_install_python(alert=False)
+        py_inst.addWidget(self.btn_install_python)
+        py_inst.addStretch(1)
+        c_py.add_layout(py_inst)
         self.pyenv_text = QTextEdit()
         self.pyenv_text.setReadOnly(True)
         self.pyenv_text.setMinimumHeight(140)
         self.pyenv_text.setMaximumHeight(200)
         self.pyenv_text.setPlaceholderText("לא נבדק עדיין…")
-        vp.addWidget(self.pyenv_text)
-        py_row = QHBoxLayout()
-        b_py = QPushButton("🔍 זהה סביבת פייתון")
+        self.pyenv_text.setVisible(False)
+        c_py.add(self.pyenv_text)
+        b_py = QPushButton("בדוק שוב")
+        b_py.setToolTip("זיהוי סביבת פייתון — בדיקה בלבד")
         b_py.clicked.connect(self._detect_pyenv)
-        py_row.addWidget(b_py)
-        # "התקן פייתון" — ליד כפתור הזיהוי ובאותו סגנון; מסגרת אדומה רק כשפייתון חסר
-        self.btn_install_python = QPushButton("⬇️ הורדת פייתון להתקנה")
-        self.btn_install_python.setToolTip(
-            "פותח בדפדפן את דף ההורדה הרשמי של פייתון לווינדוס – את ההתקנה עצמה מבצעים לבד.")
-        self.btn_install_python.clicked.connect(self._open_python_download)
-        self._style_install_python(alert=False)
-        py_row.addWidget(self.btn_install_python)
-        self.btn_auto_python = QPushButton("⚙️ התקן פייתון וספריות ל-mtkclient (אוטומטי)")
-        self.btn_auto_python.setToolTip(
-            "מוריד ומתקין את פייתון הרשמי עם PATH מסומן, ואת כל הספריות ש-mtkclient צריך — "
-            "בלי שאלות ובלי הרשאת מנהל. אם פייתון כבר מותקן — מתקין רק את הספריות.")
-        self.btn_auto_python.clicked.connect(self._auto_install_python)
-        py_row.addWidget(self.btn_auto_python)
-        b_portable = QPushButton("⬇️ הורדת פייתון נייד\u200f (MTKClient Portable)\u200f")
-        b_portable.setToolTip("פותח בדפדפן את הקובץ MTKCliantPortable.zip ב-Google Drive — "
-                              "mtkclient עם פייתון נייד, בלי התקנה. אחרי ההורדה מחלצים את הקובץ.")
-        b_portable.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(_MTK_PORTABLE_URL)))
-        py_row.addWidget(b_portable)
-        py_row.addStretch(1)
-        vp.addLayout(py_row)
-        v.addWidget(gbp)
+        c_py.add_action(b_py)
+        c_py.add_action(QWidget(), 1)
+        self._pyenv_toggle = QPushButton("הצג פירוט מלא")
+        self._pyenv_toggle.setObjectName("btnGhost")
+        self._pyenv_toggle.clicked.connect(self._toggle_pyenv_details)
+        c_py.add_action(self._pyenv_toggle)
+        grid.addWidget(c_py, 0, 1)
 
-        # ניטור חי לפורטים — למטה, מתחת לפייתון (לבקשת המשתמש)
-        v.addWidget(gb)
+        # ---- פורטים מחוברים (ניטור חי)
+        c_ports = ui_kit.Card("פורטים מחוברים", "מתעדכן לבד כשמכשיר מתחבר או מתנתק", "plug",
+                              ui_kit.Pill("● ניטור חי", "ok"))
+        self.ports_table = QTableWidget(0, 5)
+        self.ports_table.setHorizontalHeaderLabels(["פורט", "תיאור", "מצב", "VID", "PID"])
+        self.ports_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.ports_table.verticalHeader().setVisible(False)
+        self.ports_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.ports_table.setMinimumHeight(120)
+        self.ports_table.setMaximumHeight(200)
+        c_ports.add(self.ports_table)
+        refresh_btn = QPushButton("רענן עכשיו")
+        refresh_btn.setObjectName("btnGhost")
+        refresh_btn.setToolTip("הטבלה מתעדכנת אוטומטית; השתמש רק אם נראה שהיא לא התעדכנה")
+        refresh_btn.clicked.connect(self._refresh_ports)
+        c_ports.add_action(refresh_btn)
+        grid.addWidget(c_ports, 1, 0)
 
+        # ---- דרייברים (BROM)
+        c_drv = ui_kit.Card("דרייברים", "מה שנדרש במחשב כדי לדבר עם המכשיר במצב BROM", "wrench")
+        self.mtk_usbdk_pill = ui_kit.Pill("לא נבדק", "neutral")
+        self.mtk_vcom_pill = ui_kit.Pill("לא נבדק", "neutral")
+        c_drv.add(self._kv_status_box([("UsbDk (חיבור USB ישיר)", self.mtk_usbdk_pill),
+                                       ("MediaTek VCOM (פורט COM)", self.mtk_vcom_pill)]))
+        b_fix = self._fix_driver_button()
+        b_fix.setText("תקן דרייבר למכשיר המחובר")
+        b_fix.setObjectName("btnSoft")
+        c_drv.add_action(b_fix)
+        btn_check = QPushButton("בדיקת מצב הדרייברים")
+        btn_check.setToolTip("בודק אם הדרייברים MediaTek VCOM/PreLoader ו-UsbDk "
+                             "מותקנים במחשב (קריאה בלבד).")
+        btn_check.clicked.connect(lambda: self._check_drivers("mtk"))
+        c_drv.add_action(btn_check)
+        c_drv.add_action(ui_kit.menu_button("התקנה והורדה", [
+            ("התקנת דרייבר UsbDk (מתוך התוכנה)", self._install_usbdk),
+            ("התקנת דרייבר MediaTek VCOM (מתוך התוכנה)", self._install_mtk_vcom),
+            None,
+            ("הורדת UsbDk\u200f (GitHub — Daynix)\u200f", lambda: QDesktopServices.openUrl(QUrl(_USBDK_URL))),
+            ("הורדת דרייברי MediaTek VCOM\u200f (mtkdriver.com)\u200f", self._open_drivers_link),
+        ]))
+        grid.addWidget(c_drv, 1, 1)
+
+        v.addLayout(grid)
         v.addStretch(1)
         return self._scrollable(w)   # גלילה במקום "מעיכה" של החלקים
 
+    def _cards_grid(self) -> QGridLayout:
+        """רשת כרטיסים בשתי עמודות שוות (כמו בדמו)."""
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+        return grid
+
+    def _kv_status_box(self, rows) -> QFrame:
+        """מסגרת עם שורות "שם ← תגית מצב" (כמו בדמו), למשל מצב הדרייברים."""
+        box = QFrame()
+        box.setObjectName("kvList")
+        lay = QVBoxLayout(box)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+        for i, (name, pill) in enumerate(rows):
+            if i:
+                sep = QFrame()
+                sep.setObjectName("kvSep")
+                sep.setFixedHeight(1)
+                lay.addWidget(sep)
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(16, 10, 16, 10)
+            lbl = QLabel("\u200f" + name)   # מימין לשמאל גם כשהשם מתחיל באנגלית (UsbDk …)
+            lbl.setObjectName("kvVal")
+            lbl.setWordWrap(True)
+            h.addWidget(lbl, 1)
+            h.addWidget(pill)
+            lay.addWidget(row)
+        return box
+
+    @staticmethod
+    def _side_column(*cards) -> QWidget:
+        """עמודה צדדית: כרטיסים בגובה הטבעי שלהם, מלמעלה (כמו בדמו)."""
+        col = QWidget()
+        v = QVBoxLayout(col)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(14)
+        for c in cards:
+            v.addWidget(c)
+        v.addStretch(1)
+        return col
+
+    def _toggle_pyenv_details(self):
+        show = not self.pyenv_text.isVisible()
+        self.pyenv_text.setVisible(show)
+        self._pyenv_toggle.setText("הסתר פירוט" if show else "הצג פירוט מלא")
+
+    def _set_pyenv_status(self, summary: str, ok: bool):
+        """תיבת המצב של סביבת הפייתון — מהשורה הראשונה של הדוח (ושורת "פייתון פעיל")."""
+        lines = [ln.strip() for ln in (summary or "").splitlines() if ln.strip()]
+        title = lines[0] if lines else ""
+        for mark in ("🟢", "🔴"):
+            title = title.replace(mark, "").strip()
+        sub = next((ln for ln in lines if ln.startswith("פייתון פעיל:")), "")
+        if not sub and len(lines) > 1 and not lines[1].startswith("────"):
+            sub = lines[1]
+        self.pyenv_status.set(title, sub, "ok" if ok else "err")
+
     # ------------------------------------------------------------ לשונית Scatter
     def _tab_scatter(self) -> QWidget:
+        """לשונית Scatter (לפי הדמו): יצירה · בדיקה — פעולות במחשב בלבד."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        v.addWidget(ui_kit.tab_header(
+            "Scatter", "יצירה ובדיקה של קובצי Scatter לתוכנת SP Flash Tool.",
+            chip_html="פעולה <b>במחשב בלבד</b>"))
+        grid = self._cards_grid()
 
-        gb = QGroupBox("יצירת קובצי Scatter מטבלת ה-GPT")
-        gv = QVBoxLayout(gb)
+        # ---- יצירה
+        c_gen = ui_kit.Card("יצירת Scatter מטבלת ה-GPT",
+                            "קובץ בפורמט של תוכנת SP Flash Tool · המעבד מתמלא לבד אחרי קריאת GPT",
+                            "doc_plus", ui_kit.Pill("לא נוגע במכשיר", "neutral"))
         form = QFormLayout()
+        form.setVerticalSpacing(10)
         self.chip_edit = QLineEdit()
         self.chip_edit.setPlaceholderText("MT6580")
         self.chip_edit.setToolTip(
             "שם המעבד (platform). מתמלא אוטומטית כשקוראים GPT — MT6580 וכדומה. "
             "שם זה נכתב לתוך ה-Scatter וגם לשם הקובץ, ולכן הוא חובה.")
         self.chip_edit.editingFinished.connect(self._suggest_block_size)
-        form.addRow("דגם צ'יפ (platform):", self.chip_edit)
+        form.addRow("מעבד (platform):", self.chip_edit)
         self.block_size_edit = QLineEdit(f"0x{DEFAULT_BLOCK_SIZE:x}")
         self.block_size_edit.setToolTip(
             "גודל הגוש המוצהר ב-Scatter. מתעדכן אוטומטית לפי המעבד: "
             "מעבדים ישנים (MT65xx, MT6735/37/53) — 0x20000, מודרניים — 0x200000. "
             "אם יש לך Scatter מקורי של המכשיר — העדף את הערך שבו.")
-        form.addRow("block_size:", self.block_size_edit)
-        gv.addLayout(form)
-
-        b1 = QPushButton("צור Scatter מלא (כל המחיצות)")
+        form.addRow("גודל בלוק (block_size):", self.block_size_edit)
+        c_gen.add_layout(form)
+        self.bank_on_generate = QCheckBox("שמור אוטומטית גם ל'בנק סקטארים' תחת שם המעבד")
+        self.bank_on_generate.setChecked(True)
+        c_gen.add(self.bank_on_generate)
+        b1 = QPushButton("צור קובץ Scatter")
+        b1.setObjectName("btnPrimary")
         b1.setToolTip(
             "Scatter מלא ל-SP Flash Tool: preloader\u200f (EMMC_BOOT_1)\u200f + pgpt + כל מחיצות "
             "ה-GPT + sgpt.\nהקובץ נשמר בשם Android_scatter_<שם המעבד>.txt.")
         b1.clicked.connect(self._gen_scatter_full)
-        btns = QHBoxLayout()
-        btns.addWidget(b1)
-        btns.addStretch(1)
-        gv.addLayout(btns)
-        self.bank_on_generate = QCheckBox("שמור אוטומטית גם ל'בנק סקטארים' תחת שם המעבד")
-        self.bank_on_generate.setChecked(True)
-        gv.addWidget(self.bank_on_generate)
-        v.addWidget(gb)
+        c_gen.add_action(b1)
+        grid.addWidget(c_gen, 0, 0)
 
-        gb2 = QGroupBox("בדיקת קובץ Scatter")
-        g2 = QVBoxLayout(gb2)
-        form2 = QFormLayout()
+        # ---- בדיקה (התוצאה והתצוגה המקדימה — בתוך הכרטיס)
+        c_val = ui_kit.Card("בדיקת קובץ Scatter",
+                            "בודק שהקובץ תואם לתוכנת SP Flash Tool, ומאתר שגיאות מבנה לפני "
+                            "שמשתמשים בו", "doc_check", ui_kit.Pill("לא נוגע במכשיר", "neutral"))
+        lbl = QLabel("קובץ Scatter")
+        lbl.setObjectName("hint")
+        c_val.add(lbl)
         row = QHBoxLayout()
+        row.setSpacing(8)
         self.scatter_path_edit = QLineEdit()
-        btn_browse = QPushButton("…")
-        btn_browse.setMaximumWidth(52)
+        self.scatter_path_edit.setPlaceholderText("לא נבחר קובץ")
+        self.scatter_path_edit.textChanged.connect(self._scatter_path_changed)
+        row.addWidget(self.scatter_path_edit, 1)
+        btn_browse = QPushButton("בחר קובץ…")
         btn_browse.clicked.connect(self._browse_scatter)
-        row.addWidget(self.scatter_path_edit)
         row.addWidget(btn_browse)
-        form2.addRow("קובץ Scatter:", row)
-        g2.addLayout(form2)
-        btns2 = QHBoxLayout()
-        b_val = QPushButton("✅ אמת תקינות ל-SP Flash")
+        c_val.add_layout(row)
+        self.scatter_result = QWidget()   # שורות "בדיקה ← תגית" (מתמלא ב-_show_scatter_result)
+        QVBoxLayout(self.scatter_result).setContentsMargins(0, 0, 0, 0)
+        self.scatter_result.setVisible(False)
+        c_val.add(self.scatter_result)
+        self.scatter_preview = QPlainTextEdit()
+        self.scatter_preview.setObjectName("preview")
+        self.scatter_preview.setReadOnly(True)
+        self.scatter_preview.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self.scatter_preview.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.scatter_preview.setMaximumHeight(260)
+        self.scatter_preview.setVisible(False)
+        c_val.add(self.scatter_preview)
+        b_val = QPushButton("בדוק קובץ")
+        b_val.setToolTip("אימות תקינות ל-SP Flash Tool")
         b_val.clicked.connect(self._validate_scatter_file)
-        b_prev = QPushButton("👁️ תצוגה מקדימה")
+        c_val.add_action(b_val)
+        b_prev = QPushButton("תצוגה מקדימה")
         b_prev.clicked.connect(self._preview_scatter_file)
-        btns2.addWidget(b_val)
-        btns2.addWidget(b_prev)
-        btns2.addStretch(1)
-        g2.addLayout(btns2)
-        v.addWidget(gb2)
+        c_val.add_action(b_prev)
+        grid.addWidget(c_val, 0, 1)
+
+        v.addLayout(grid)
         v.addStretch(1)
         return w
 
@@ -1331,20 +1406,41 @@ class MainWindow(QMainWindow):
         if not path:
             return
         problems = validate_scatter(path)
+        # התוצאה — בתוך הכרטיס (במקום חלון), כמו בדמו
         if not problems:
             self._say("success", f"הקובץ תקין ל-SP Flash: {path.name}")
-            QMessageBox.information(self, "תקין",
-                                    f"הקובץ עבר את כל הבדיקות ונראה תקין ל-SP Flash Tool:\n{path}")
+            self._show_scatter_result([
+                ("תאימות לתוכנת SP Flash Tool", "תואם", "ok"),
+                ("בדיקות המבנה", "עבר את כל הבדיקות", "ok"),
+            ])
             return
         self._say("error", f"נמצאו {len(problems)} בעיות בקובץ")
         for pr in problems:
             self._say("warning", f"  • {pr}")
-        QMessageBox.warning(self, "נמצאו בעיות",
-                            "הקובץ אינו תקין:\n\n" + "\n".join(f"• {p}" for p in problems))
+        self._show_scatter_result(
+            [("תאימות לתוכנת SP Flash Tool", "לא תקין", "danger")]
+            + [(pr, "בעיה", "danger") for pr in problems])
+
+    def _show_scatter_result(self, rows):
+        """תוצאת בדיקת ה-Scatter בתוך הכרטיס: שורות "בדיקה ← תגית" (כמו בדמו)."""
+        lay = self.scatter_result.layout()
+        while lay.count():
+            item = lay.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        lay.addWidget(self._kv_status_box([(t, ui_kit.Pill(p, k)) for t, p, k in rows]))
+        self.scatter_result.setVisible(True)
+
+    def _scatter_path_changed(self, *_):
+        """נבחר קובץ אחר — התוצאה והתצוגה המקדימה הקודמות כבר לא שייכות אליו."""
+        self.scatter_result.setVisible(False)
+        self.scatter_preview.setVisible(False)
 
     def _preview_scatter_file(self):
         path = self._current_scatter_path()
-        if not path or not path.is_file():
+        if not path:
+            return   # כבר הוצגה האזהרה "בחר קובץ Scatter קודם"
+        if not path.is_file():
             QMessageBox.warning(self, "קובץ חסר", "הקובץ לא נמצא")
             return
         try:
@@ -1352,11 +1448,9 @@ class MainWindow(QMainWindow):
         except OSError as e:
             QMessageBox.critical(self, "שגיאה", f"קריאה נכשלה: {e}")
             return
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle(f"תצוגה מקדימה: {path.name}")
-        dlg.setText(f"{path}")
-        dlg.setDetailedText(text)
-        dlg.exec()
+        # התצוגה המקדימה — בתוך הכרטיס (במקום חלון)
+        self.scatter_preview.setPlainText(text)
+        self.scatter_preview.setVisible(True)
 
     # ------------------------------------------------------------ לשונית בנק סקטארים
     def _tab_scatter_bank(self) -> QWidget:
@@ -1537,59 +1631,90 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית שאיבה
     def _tab_readback(self) -> QWidget:
+        """לשונית שאיבה (לפי הדמו): מחיצות (מצב ריק ← טבלה) · תיקיית יעד."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        v.addWidget(ui_kit.tab_header(
+            "שאיבה (Readback)",
+            "העתקת מחיצות מהמכשיר לקבצים במחשב — גיבוי לפני צריבה, או לשחזור בעתיד.",
+            "mtkclient (BROM)"))
+        grid = self._cards_grid()
+        grid.setColumnStretch(0, 2)
 
-        gb = QGroupBox("מחיצות (מה-GPT) — סמן את המחיצות לשאיבה")
-        gv = QVBoxLayout(gb)
+        c_parts = ui_kit.Card("מחיצות", "סמן את המחיצות לשאיבה", "database",
+                              ui_kit.Pill("קריאה בלבד", "ok"))
         self.part_list = QTableWidget(0, 4)
         self.part_list.setHorizontalHeaderLabels(["✔", "מחיצה", "התחלה", "גודל"])
         hh = self.part_list.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.part_list.verticalHeader().setVisible(False)
         self.part_list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.part_list.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.part_list.setMinimumHeight(330)
         self.part_list.itemChanged.connect(self._update_selection_label)
         self.part_list.cellClicked.connect(self._toggle_row_check)
-        gv.addWidget(self.part_list)
-
+        # לפני קריאת GPT — מצב ריק עם כפתור לצעד הבא (כמו בדמו)
+        b_gpt_empty = QPushButton("קרא טבלת מחיצות (GPT)")
+        b_gpt_empty.setObjectName("btnPrimary")
+        b_gpt_empty.clicked.connect(self._read_gpt)
+        self._parts_empty = ui_kit.EmptyBox("עדיין לא נקראה טבלת מחיצות מהמכשיר.",
+                                            b_gpt_empty, min_height=240)
+        # הטבלה ושורת הבחירה — מוצגות אחרי קריאת GPT (לפני כן: מצב ריק עם כפתור)
+        self._parts_page = QWidget()
+        pv = QVBoxLayout(self._parts_page)
+        pv.setContentsMargins(0, 0, 0, 0)
+        pv.setSpacing(12)
+        pv.addWidget(self.part_list)
         sel_row = QHBoxLayout()
-        b_all = QPushButton("☑ סמן הכל")
+        sel_row.setSpacing(8)
+        b_all = QPushButton("סמן הכל")
         b_all.clicked.connect(lambda: self._set_all_checks(True))
-        b_none = QPushButton("☐ נקה סימון")
+        b_none = QPushButton("נקה סימון")
         b_none.clicked.connect(lambda: self._set_all_checks(False))
         self.sel_label = QLabel("לא סומנו מחיצות")
+        self.sel_label.setObjectName("hint")
         sel_row.addWidget(b_all)
         sel_row.addWidget(b_none)
         sel_row.addWidget(self.sel_label, 1)
-        gv.addLayout(sel_row)
-
-        btns = QHBoxLayout()
         btn_dump_gpt = QPushButton("טען GPT לרשימה")
-        btn_dump_gpt.setObjectName("btnSoft")
+        btn_dump_gpt.setObjectName("btnGhost")
         btn_dump_gpt.clicked.connect(self._read_gpt)
+        sel_row.addWidget(btn_dump_gpt)
+        sel_row.addWidget(self._help_dot("gpt"))
+        pv.addLayout(sel_row)
+        self._parts_stack = QStackedWidget()
+        self._parts_stack.addWidget(self._parts_empty)
+        self._parts_stack.addWidget(self._parts_page)
+        c_parts.add(self._parts_stack)
         self.btn_read_sel = QPushButton(" שאב מחיצות מסומנות")
         self.btn_read_sel.setObjectName("btnPrimary")   # הפעולה העיקרית בלשונית — בצבע ההדגשה
         self.btn_read_sel.setIcon(guiicons.curved_left_arrow_icon(color=theme.colors()["btn_text"]))
         self.btn_read_sel.clicked.connect(self._read_checked)
-        btn_read_pre = QPushButton("שאב Preloader")
-        btn_read_pre.setObjectName("btnSoft")
-        btn_read_pre.clicked.connect(self._read_preloader)
+        c_parts.add_action(self.btn_read_sel)
+        c_parts.add_action(self._help_dot("readback"))
         btn_read_all = QPushButton("שאב את כל המחיצות (rl)")
-        btn_read_all.setObjectName("btnSoft")
         btn_read_all.clicked.connect(self._read_all)
-        btn_open = QPushButton("📂 פתח תיקיית שאיבות")
-        btn_open.setObjectName("btnSoft")
+        c_parts.add_action(btn_read_all)
+        btn_read_pre = QPushButton("שאב Preloader")
+        btn_read_pre.clicked.connect(self._read_preloader)
+        c_parts.add_action(btn_read_pre)
+        grid.addWidget(c_parts, 0, 0)
+
+        # הנתיב נשבר בכל תיקייה (ולא רק אחרי "C:") — כך הכרטיס הצר לא נמתח; מיושר לימין
+        c_dest = ui_kit.Card("תיקיית יעד", "\u200f" + ui_kit.breakable_path(str(config.DUMPS_DIR)),
+                             "folder")
+        c_dest.desc.setToolTip(str(config.DUMPS_DIR))
+        btn_open = QPushButton("פתח תיקייה")
         btn_open.clicked.connect(lambda: QDesktopServices.openUrl(
             QUrl.fromLocalFile(str(config.DUMPS_DIR))))
-        for b, hk in ((btn_dump_gpt, "gpt"), (self.btn_read_sel, "readback"),
-                      (btn_read_pre, "readback"), (btn_read_all, "readback"),
-                      (btn_open, None)):
-            btns.addWidget(b)
-            if hk:
-                btns.addWidget(self._help_dot(hk))
-        gv.addLayout(btns)
-        v.addWidget(gb)
+        c_dest.add_action(btn_open)
+        grid.addWidget(self._side_column(c_dest), 0, 1)
+
+        v.addLayout(grid)
+        v.addStretch(1)
         return w
 
     def _fill_partition_table(self, table: GptTable):
@@ -1612,6 +1737,8 @@ class MainWindow(QMainWindow):
             self.part_list.setItem(row, 3, QTableWidgetItem(format_size(p.length)))
         self.part_list.blockSignals(False)
         self._update_selection_label()
+        # לפני קריאת GPT — מצב ריק עם כפתור; אחרי — הטבלה
+        self._parts_stack.setCurrentWidget(self._parts_page if table.partitions else self._parts_empty)
 
     def _toggle_row_check(self, row: int, col: int):
         if col == 0:
@@ -1649,139 +1776,217 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית צריבה
     def _tab_flash(self) -> QWidget:
+        """לשונית צריבה (לפי הדמו): צריבת Image למחיצה · לפני שצורבים (רשימת בדיקה חיה)."""
         w = QWidget()
         v = QVBoxLayout(w)
-        gb = QGroupBox("צריבת Image למחיצה")
-        form = QFormLayout()
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        v.addWidget(ui_kit.tab_header(
+            "צריבה (Download)",
+            "כתיבת קובץ Image על מחיצה במכשיר — עם גיבוי אוטומטי לפני כן.",
+            "mtkclient (BROM)"))
+        grid = self._cards_grid()
+        grid.setColumnStretch(0, 2)
+
+        c_fl = ui_kit.Card("צריבת Image למחיצה",
+                           "בחר קובץ ומחיצה — הפקודה המדויקת תוצג לפני ההרצה", "download",
+                           ui_kit.Pill("כתיבה", "warn"), danger=True)
+        lbl_img = QLabel("קובץ Image")
+        lbl_img.setObjectName("hint")
+        c_fl.add(lbl_img)
         img_row = QHBoxLayout()
+        img_row.setSpacing(8)
         self.image_edit = QLineEdit()
-        btn_browse = QPushButton("…")
-        btn_browse.setMaximumWidth(52)
+        self.image_edit.setPlaceholderText("לא נבחר קובץ")
+        img_row.addWidget(self.image_edit, 1)
+        btn_browse = QPushButton("בחר קובץ…")
         btn_browse.clicked.connect(self._browse_image)
-        img_row.addWidget(self.image_edit)
         img_row.addWidget(btn_browse)
-        form.addRow("קובץ Image:", img_row)
+        c_fl.add_layout(img_row)
+        lbl_part = QLabel("מחיצת יעד")
+        lbl_part.setObjectName("hint")
+        c_fl.add(lbl_part)
         self.part_combo = QComboBox()
-        form.addRow("מחיצת יעד:", self.part_combo)
+        self.part_combo.setPlaceholderText("— קודם קרא טבלת מחיצות —")
+        c_fl.add(self.part_combo)
+        # מחיצה רגישה — אזהרה אדומה בתוך הכרטיס (כמו בדמו)
+        self.flash_sens_note = QLabel("")
+        self.flash_sens_note.setObjectName("noticeDanger")
+        self.flash_sens_note.setWordWrap(True)
+        self.flash_sens_note.setVisible(False)
+        c_fl.add(self.flash_sens_note)
         self.backup_check = QCheckBox("גיבוי אוטומטי של המחיצה לפני צריבה (מומלץ)")
         self.backup_check.setChecked(True)
-        form.addRow(self.backup_check)
-        flash_row = QHBoxLayout()
-        btn_flash = QPushButton(" צרב")
-        btn_flash.setObjectName("btnDanger")   # צריבה — כפתור אדום גדול (כמו Download ב-SP Flash)
+        c_fl.add(self.backup_check)
+        btn_flash = QPushButton(" צרוב למחיצה")
+        btn_flash.setObjectName("btnDanger")   # צריבה — כפתור אדום (כמו Download ב-SP Flash)
         btn_flash.setIcon(guiicons.down_arrow_icon(color="#ffffff"))   # לבן — נראה על האדום
         self.btn_flash_main = btn_flash
         btn_flash.clicked.connect(self._flash_image)
-        flash_row.addWidget(btn_flash)
-        flash_row.addWidget(self._help_dot("flash"))
-        flash_row.addStretch(1)
-        form.addRow(flash_row)
-        gb.setLayout(form)
-        v.addWidget(gb)
+        c_fl.add_action(btn_flash)
+        c_fl.add_action(self._help_dot("flash"))
+        grid.addWidget(c_fl, 0, 0)
 
-        gb2 = QGroupBox("מידע")
-        v2 = QVBoxLayout(gb2)
+        c_pre = ui_kit.Card("לפני שצורבים", "מתעדכן לבד לפי מצב המכשיר", "doc_check")
+        self.preflash = ui_kit.Checklist([
+            "מחובר בערוץ mtkclient\u200f (BROM)\u200f",
+            "טבלת המחיצות נקראה",
+            "נבחרו קובץ ומחיצה",
+            "גיבוי אוטומטי לפני הצריבה",
+        ])
+        c_pre.add(self.preflash)
         info = QLabel(
             "סדר הפעולה: אימות גודל ← גיבוי המחיצה הקיימת (+SHA256) אל workspace\\backups ← צריבה.\n"
             "אם הגיבוי נכשל — הצריבה לא מתבצעת.\n"
             "מצבי SP Flash\u200f (Download Only / Format All)\u200f — בתכנון.")
+        info.setObjectName("hint")
         info.setWordWrap(True)
-        v2.addWidget(info)
-        v.addWidget(gb2)
+        c_pre.add(info)
+        grid.addWidget(self._side_column(c_pre), 0, 1)
+
+        self.image_edit.textChanged.connect(self._update_preflash)
+        self.part_combo.currentTextChanged.connect(self._on_flash_part_changed)
+        self.backup_check.toggled.connect(self._update_preflash)
+
+        v.addLayout(grid)
         v.addStretch(1)
         return w
 
+    def _on_flash_part_changed(self, name: str):
+        """מחיצה רגישה נבחרה — אזהרה אדומה בכרטיס הצריבה."""
+        warn = get_partition_warning(name) if name else ""
+        self.flash_sens_note.setText(f"\u200f⚠️ {name}: {warn}" if warn else "")
+        self.flash_sens_note.setVisible(bool(warn))
+        self._update_preflash()
+
+    def _update_preflash(self, *_):
+        """רשימת "לפני שצורבים" — מתעדכנת לפי מצב המכשיר והבחירות (תצוגה בלבד)."""
+        if not hasattr(self, "preflash"):
+            return
+        mode = getattr(getattr(self, "_last_dev_info", None), "mode", "none")
+        self.preflash.set_states([
+            mode == "brom",
+            self.gpt is not None,
+            bool(self.image_edit.text().strip()) and bool(self.part_combo.currentText().strip()),
+            self.backup_check.isChecked(),
+        ])
+
     # ------------------------------------------------------------ לשונית Bootloader
     def _tab_bootloader(self) -> QWidget:
+        """לשונית Bootloader (לפי הדמו): מצב אבטחה · פתיחה / נעילה — לפי ערוץ התקשורת."""
         w = QWidget()
         v = QVBoxLayout(w)
-        gb = QGroupBox("פתיחה / נעילה של בוטלאודר (לפי ערוץ התקשורת)")
-        gv = QVBoxLayout(gb)
-        lbl = QLabel(
-            "הכפתורים פועלים לפי ערוץ התקשורת הפעיל: mtkclient\u200f (seccfg)\u200f · Fastboot\u200f (flashing)\u200f · "
-            "ADB (מעביר אוטומטית ל-Fastboot).\n"
-            "⚠️ פתיחת ה-Bootloader\u200f (Unlock)\u200f מוחקת את כל הנתונים מהמכשיר — תמונות, אפליקציות, "
-            "הגדרות וכל נתוני המשתמש. ודא שיש לך גיבוי לפני שימוש!")
-        lbl.setWordWrap(True)
-        gv.addWidget(lbl)
-        btns = QHBoxLayout()
-        btn_unlock = QPushButton("🔓 Unlock")
-        btn_unlock.clicked.connect(lambda: self._bootloader_change_router(True))
-        btn_lock = QPushButton("🔒 Lock")
-        btn_lock.clicked.connect(lambda: self._bootloader_change_router(False))
-        btns.addWidget(btn_unlock)
-        btns.addWidget(self._help_dot("seccfg"))
-        btns.addWidget(btn_lock)
-        btns.addStretch(1)
-        gv.addLayout(btns)
-        v.addWidget(gb)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        self._boot_header = ui_kit.tab_header(
+            "Bootloader", "בדיקה, פתיחה ונעילה — לפי ערוץ התקשורת הפעיל.",
+            chip_html="לפי הערוץ: <b>—</b>")
+        v.addWidget(self._boot_header)
+        grid = self._cards_grid()
 
-        gb2 = QGroupBox("מצב אבטחה / בוטלאודר (קריאה בלבד — לפי ערוץ התקשורת)")
-        g2 = QVBoxLayout(gb2)
-        info = QLabel(
-            "בודק את מצב הבוטלאודר לפי ערוץ התקשורת הפעיל: ADB\u200f (getprop)\u200f · Fastboot\u200f (getvar)\u200f · "
-            "mtkclient\u200f (gettargetconfig)\u200f. קריאה בלבד — לא משנה כלום במכשיר.")
-        info.setWordWrap(True)
-        g2.addWidget(info)
+        c_sec = ui_kit.Card(
+            "מצב אבטחה / בוטלאודר",
+            "בודק את מצב הבוטלאודר לפי ערוץ התקשורת הפעיל: ADB\u200f (getprop)\u200f · "
+            "Fastboot\u200f (getvar)\u200f · mtkclient\u200f (gettargetconfig)\u200f. "
+            "קריאה בלבד — לא משנה כלום במכשיר.", "shield", ui_kit.Pill("קריאה בלבד", "ok"))
         self.boot_status = QTextEdit()
         self.boot_status.setReadOnly(True)
         self.boot_status.setPlaceholderText(
             "לא נבדק עדיין. חבר מכשיר במצב BROM/Preloader ולחץ 'בדוק מצב אבטחה'.")
         self.boot_status.setMaximumHeight(150)
-        g2.addWidget(self.boot_status)
-        sec_row = QHBoxLayout()
-        b_check = QPushButton("🔍 בדוק מצב אבטחה / בוטלאודר")
+        c_sec.add(self.boot_status)
+        b_check = QPushButton("בדוק מצב אבטחה / בוטלאודר")
+        b_check.setObjectName("btnPrimary")
         b_check.clicked.connect(self._bootloader_check_router)
-        sec_row.addWidget(b_check)
-        sec_row.addWidget(self._help_dot("security"))
-        sec_row.addStretch(1)
-        g2.addLayout(sec_row)
-        v.addWidget(gb2)
+        c_sec.add_action(b_check)
+        c_sec.add_action(self._help_dot("security"))
+        grid.addWidget(c_sec, 0, 0)
+
+        c_lock = ui_kit.Card(
+            "פתיחה / נעילה",
+            "הכפתורים פועלים לפי ערוץ התקשורת הפעיל: mtkclient\u200f (seccfg)\u200f · "
+            "Fastboot\u200f (flashing)\u200f · "
+            "ADB (מעביר אוטומטית ל-Fastboot).", "lock", ui_kit.Pill("מוחק נתונים", "danger"),
+            danger=True)
+        note = QLabel(
+            "⚠️ פתיחת ה-Bootloader\u200f (Unlock)\u200f מוחקת את כל הנתונים מהמכשיר — תמונות, "
+            "אפליקציות, הגדרות וכל נתוני המשתמש. ודא שיש לך גיבוי לפני שימוש!")
+        note.setObjectName("noticeDanger")
+        note.setWordWrap(True)
+        c_lock.add(note)
+        btn_unlock = QPushButton("פתח בוטלאודר")
+        btn_unlock.setObjectName("btnDanger")
+        btn_unlock.clicked.connect(lambda: self._bootloader_change_router(True))
+        c_lock.add_action(btn_unlock)
+        c_lock.add_action(self._help_dot("seccfg"))
+        btn_lock = QPushButton("נעל בוטלאודר")
+        btn_lock.setObjectName("btnDangerOutline")
+        btn_lock.clicked.connect(lambda: self._bootloader_change_router(False))
+        c_lock.add_action(btn_lock)
+        grid.addWidget(c_lock, 0, 1)
+
+        v.addLayout(grid)
         v.addStretch(1)
         return w
 
+    def _update_boot_chip(self, *_):
+        """התגית בכותרת לשונית Bootloader: "לפי הערוץ: X" — מתעדכנת עם הערוץ."""
+        hdr = getattr(self, "_boot_header", None)
+        if hdr is None or hdr.chip is None:
+            return
+        ch = self._effective_channel()
+        label = self._channel_label(ch) if ch != "none" else "אין ערוץ פעיל"
+        hdr.chip.setText(f"לפי הערוץ: <b>{ui_kit.ltr(label)}</b>")
+
     # ------------------------------------------------------------ לשונית בפיתוח (רוטינג אוטומטי)
     def _tab_dev_features(self) -> QWidget:
+        """לשונית בפיתוח (לפי הדמו): תגית "ניסיוני", אזהרה, ושתי ארכיטקטורות."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        v.addWidget(ui_kit.tab_header(
+            "בפיתוח", "תהליכי רוט ניסיוניים — עדיין בבדיקה.",
+            extra=(ui_kit.Pill("ניסיוני", "warn"),)))
         warn = QLabel(
             "⚠️ תכונה ניסיונית בפיתוח. כל שלב מוצג לאישור מפורש לפני שהוא רץ, וגיבוי "
             "אוטומטי נשמר לפני כל כתיבה — אך המסלול טרם נבדק על מכשיר אמיתי. מומלץ "
             "להתחיל במכשיר לא-קריטי.")
+        warn.setObjectName("noticeWarn")
         warn.setWordWrap(True)
         v.addWidget(warn)
+        grid = self._cards_grid()
 
-        gb1 = QGroupBox("ארכיטקטורה 1 — רוטינג אוטומטי, BROM בלבד (בלי מצב מפתחים)")
-        g1 = QVBoxLayout(gb1)
-        l1 = QLabel("מסלול מלא דרך mtkclient/BROM בלבד: זיהוי ← שאיבה ← פאץ' Magisk "
-                   "בצד המחשב ← צריבה חזרה. לא דורש ADB/מצב מפתחים כלל.")
-        l1.setWordWrap(True)
-        g1.addWidget(l1)
-        row1 = QHBoxLayout()
-        b1 = QPushButton("🧪 התחל רוטינג אוטומטי (BROM)")
+        c1 = ui_kit.Card("ארכיטקטורה 1 — BROM בלבד",
+                         "מסלול מלא דרך mtkclient/BROM בלבד: זיהוי ← שאיבה ← פאץ' Magisk בצד "
+                         "המחשב ← צריבה חזרה. לא דורש ADB/מצב מפתחים כלל.",
+                         "spark", ui_kit.Pill("כתיבה", "warn"))
+        c1.add(ui_kit.steps_list(["זיהוי ושאיבה דרך BROM",
+                                  "פאץ' Magisk בצד המחשב",
+                                  "צריבה חזרה דרך BROM"]))
+        b1 = QPushButton("התחל רוטינג אוטומטי (BROM)")
+        b1.setObjectName("btnPrimary")
         b1.clicked.connect(lambda: self._dev_start_architecture(False))
-        row1.addWidget(b1)
-        row1.addWidget(self._help_dot("root_brom"))
-        row1.addStretch(1)
-        g1.addLayout(row1)
-        v.addWidget(gb1)
+        c1.add_action(b1)
+        c1.add_action(self._help_dot("root_brom"))
+        grid.addWidget(c1, 0, 0)
 
-        gb2 = QGroupBox("ארכיטקטורה 2 — עם Fastboot (למכשירים שבהם BROM לא מסוגל לכתוב)")
-        g2 = QVBoxLayout(gb2)
-        l2 = QLabel("זהה לחלוטין לארכיטקטורה 1 בזיהוי/שאיבה/פאץ' — אך Unlock ו-Write "
-                   "עוברים ל-Fastboot כשל-BROM אין הרשאת כתיבה (seccfg). דורש אישור פיזי "
-                   "בכפתורי עוצמת קול על המכשיר, ו-OEM Unlocking דלוק במצב מפתחים.")
-        l2.setWordWrap(True)
-        g2.addWidget(l2)
-        row2 = QHBoxLayout()
-        b2 = QPushButton("🧪 התחל רוטינג אוטומטי (עם Fastboot)")
+        c2 = ui_kit.Card("ארכיטקטורה 2 — עם Fastboot",
+                         "זהה לחלוטין לארכיטקטורה 1 בזיהוי/שאיבה/פאץ' — אך Unlock ו-Write עוברים "
+                         "ל-Fastboot כשל-BROM אין הרשאת כתיבה (seccfg). דורש אישור פיזי "
+                         "בכפתורי עוצמת קול על המכשיר, ו-OEM Unlocking דלוק במצב מפתחים.",
+                         "bolt", ui_kit.Pill("כתיבה", "warn"))
+        c2.add(ui_kit.steps_list(["זיהוי ושאיבה דרך BROM",
+                                  "פאץ' Magisk בצד המחשב",
+                                  "פתיחה וצריבה דרך Fastboot (אישור בכפתורי עוצמת הקול)"]))
+        b2 = QPushButton("התחל רוטינג אוטומטי (עם Fastboot)")
+        b2.setObjectName("btnPrimary")
         b2.clicked.connect(lambda: self._dev_start_architecture(True))
-        row2.addWidget(b2)
-        row2.addWidget(self._help_dot("root_fastboot"))
-        row2.addStretch(1)
-        g2.addLayout(row2)
-        v.addWidget(gb2)
+        c2.add_action(b2)
+        c2.add_action(self._help_dot("root_fastboot"))
+        grid.addWidget(c2, 0, 1)
 
+        v.addLayout(grid)
         v.addStretch(1)
         return w
 
@@ -1900,139 +2105,130 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית Fastboot
     def _tab_fastboot(self) -> QWidget:
+        """לשונית Fastboot (לפי הדמו): זיהוי ומידע · צריבה/מחיקה · אתחול · בוטלאודר ·
+        דרייברים. אותן פונקציות כמו קודם."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        b_fb_help = QPushButton("הוראות Fastboot")
+        b_fb_help.clicked.connect(lambda: self._show_mode_instructions("fastboot"))
+        v.addWidget(ui_kit.tab_header(
+            "Fastboot", "צריבה ומחיקה לפי שם מחיצה, ופעולות בוטלאודר.", "Fastboot",
+            extra=(b_fb_help,)))
+        grid = self._cards_grid()
 
-        # דרייברים למצב Fastboot (קישורים — יוחלפו בעתיד בלינקים סופיים)
-        gdrv = QGroupBox("דרייברים למצב Fastboot")
-        dv = QVBoxLayout(gdrv)
-        drv_note = QLabel(
-            "אם המכשיר לא מזוהה במצב Fastboot — התקן את דרייבר "
-            "'Android Bootloader Interface' של Google:")
-        drv_note.setWordWrap(True)
-        dv.addWidget(drv_note)
-        drv_row = QHBoxLayout()
-        b_drv_install = QPushButton("⚙️ התקנת דרייבר Fastboot (מתוך התוכנה)")
-        b_drv_install.setToolTip("מתקין את הדרייבר מהתיקייה tools\\fastboot_driver "
-                                 "(נדרשת הרשאת מנהל)")
-        b_drv_install.clicked.connect(lambda: self._install_android_drivers("Fastboot"))
-        drv_row.addWidget(b_drv_install)
-        b_drv_goog = QPushButton("⬇️ הורדת דרייבר Fastboot")
-        b_drv_goog.setToolTip("הדרייבר הרשמי של Google\u200f (Google USB Driver)\u200f")
-        b_drv_goog.clicked.connect(lambda: QDesktopServices.openUrl(
-            QUrl("https://developer.android.com/studio/run/win-usb")))
-        b_drv_check = QPushButton("🩺 בדיקת דרייבר Fastboot")
-        b_drv_check.setToolTip("בדיקה קריאה-בלבד: האם דרייבר Android Bootloader "
-                               "Interface מותקן במחשב הזה")
-        b_drv_check.clicked.connect(lambda: self._check_drivers("fastboot"))
-        drv_row.addWidget(b_drv_goog)
-        drv_row.addWidget(b_drv_check)
-        drv_row.addWidget(self._fix_driver_button())
-        drv_row.addStretch(1)
-        dv.addLayout(drv_row)
-        # מיקום הנושא בלשונית נקבע בהמשך (התוספות בסוף) — "דרייברים" ירד לתחתית.
-        # נושא 'כלי Fastboot' (בחירת fastboot.exe) הוסר: הכלי ארוז בתוכנה ומזוהה לבד
-
-        # זיהוי ומידע
-        gb1 = QGroupBox("זיהוי ומידע (קריאה בלבד)")
-        g1 = QVBoxLayout(gb1)
-        note = QLabel(
-            "המכשיר חייב להיות במצב Fastboot, ודרייבר 'Android Bootloader Interface' "
-            "מותקן. אחרת המכשיר לא יזוהה.")
-        note.setWordWrap(True)
-        g1.addWidget(note)
+        # ---- זיהוי ומידע (קריאה בלבד)
+        c_id = ui_kit.Card("זיהוי ומידע",
+                           "המכשיר חייב להיות במצב Fastboot, ודרייבר 'Android Bootloader Interface' "
+                           "מותקן. אחרת המכשיר לא יזוהה.", "search", ui_kit.Pill("קריאה בלבד", "ok"))
         # זיהוי אוטומטי: שם המכשיר ומצב הבוטלאודר מתעדכנים לבד כשמכשיר ב-Fastboot מחובר
         self.fb_auto_label = QLabel("לא מחובר מכשיר ב-Fastboot")
+        self.fb_auto_label.setObjectName("statusTitle")
         self.fb_auto_label.setWordWrap(True)
-        _f = self.fb_auto_label.font()
-        _f.setBold(True)
-        self.fb_auto_label.setFont(_f)
-        g1.addWidget(self.fb_auto_label)
-        rowd = QHBoxLayout()
-        b_dev = QPushButton("🔎 זהה מכשיר (devices)")
-        b_dev.clicked.connect(self._fb_detect)
-        b_info = QPushButton("ℹ️ מידע ומצב נעילה (getvar all)")
-        b_info.clicked.connect(self._fb_info)
-        rowd.addWidget(b_dev)
-        rowd.addWidget(self._help_dot("fb_detect"))
-        rowd.addWidget(b_info)
-        rowd.addWidget(self._help_dot("fb_info"))
-        b_fb_help = QPushButton("❓ הוראות Fastboot")
-        b_fb_help.clicked.connect(lambda: self._show_mode_instructions("fastboot"))
-        rowd.addWidget(b_fb_help)
-        rowd.addStretch(1)
-        g1.addLayout(rowd)
+        c_id.add(self.fb_auto_label)
         self.fb_status = QTextEdit()
         self.fb_status.setReadOnly(True)
         self.fb_status.setPlaceholderText("לא נבדק עדיין.")
-        g1.addWidget(self.fb_status)
-        v.addWidget(gb1)
+        self.fb_status.setMaximumHeight(150)
+        c_id.add(self.fb_status)
+        b_dev = QPushButton("זהה מכשיר")
+        b_dev.setObjectName("btnPrimary")
+        b_dev.setToolTip("fastboot devices")
+        b_dev.clicked.connect(self._fb_detect)
+        c_id.add_action(b_dev)
+        c_id.add_action(self._help_dot("fb_detect"))
+        b_info = QPushButton("מידע ומצב נעילה")
+        b_info.setToolTip("fastboot getvar all")
+        b_info.clicked.connect(self._fb_info)
+        c_id.add_action(b_info)
+        c_id.add_action(self._help_dot("fb_info"))
+        grid.addWidget(c_id, 0, 0)
 
-        # צריבה / מחיקה
-        gb2 = QGroupBox("צריבה / מחיקה (דורש בוטלאודר פתוח)")
-        form = QFormLayout()
+        # ---- צריבה / מחיקה
+        c_fl = ui_kit.Card("צריבה / מחיקה", "דורש בוטלאודר פתוח", "download",
+                           ui_kit.Pill("כתיבה", "warn"), danger=True)
+        lbl_img = QLabel("קובץ Image")
+        lbl_img.setObjectName("hint")
+        c_fl.add(lbl_img)
         img_row = QHBoxLayout()
+        img_row.setSpacing(8)
         self.fb_image_edit = QLineEdit()
-        b_browse = QPushButton("…")
-        b_browse.setMaximumWidth(52)
+        self.fb_image_edit.setPlaceholderText("לא נבחר קובץ")
+        img_row.addWidget(self.fb_image_edit, 1)
+        b_browse = QPushButton("בחר קובץ…")
         b_browse.clicked.connect(self._fb_browse_image)
-        img_row.addWidget(self.fb_image_edit)
         img_row.addWidget(b_browse)
-        form.addRow("קובץ Image:", img_row)
+        c_fl.add_layout(img_row)
+        lbl_part = QLabel("שם מחיצה")
+        lbl_part.setObjectName("hint")
+        c_fl.add(lbl_part)
         self.fb_part_edit = QLineEdit()
         self.fb_part_edit.setPlaceholderText("boot / recovery / vbmeta / …")
-        form.addRow("שם מחיצה:", self.fb_part_edit)
-        rowf = QHBoxLayout()
-        b_flash = QPushButton("🔥 צרב (flash)")
+        c_fl.add(self.fb_part_edit)
+        b_flash = QPushButton("צרוב")
         b_flash.setObjectName("btnDanger")
+        b_flash.setToolTip("fastboot flash")
         b_flash.clicked.connect(self._fb_flash)
-        b_erase = QPushButton("🗑️ מחק (erase)")
-        b_erase.setObjectName("btnWarn")
+        c_fl.add_action(b_flash)
+        c_fl.add_action(self._help_dot("fb_flash"))
+        b_erase = QPushButton("מחק מחיצה")
+        b_erase.setObjectName("btnDangerOutline")
+        b_erase.setToolTip("fastboot erase")
         b_erase.clicked.connect(self._fb_erase)
-        rowf.addWidget(b_flash)
-        rowf.addWidget(self._help_dot("fb_flash"))
-        rowf.addWidget(b_erase)
-        rowf.addWidget(self._help_dot("fb_erase"))
-        rowf.addStretch(1)
-        gb2.setLayout(form)
-        v.addWidget(gb2)
-        wrap = QWidget()
-        wl = QVBoxLayout(wrap)
-        wl.setContentsMargins(0, 0, 0, 0)
-        wl.addLayout(rowf)
-        v.addWidget(wrap)
+        c_fl.add_action(b_erase)
+        c_fl.add_action(self._help_dot("fb_erase"))
+        grid.addWidget(c_fl, 0, 1)
 
-        # אתחול
-        gb3 = QGroupBox("אתחול")
-        g3 = QHBoxLayout(gb3)
-        b_rb = QPushButton("🔄 הפעל מחדש (מערכת)")
+        # ---- אתחול
+        c_rb = ui_kit.Card("אתחול", "הפעלה מחדש למערכת, או חזרה ל-Fastboot", "reboot")
+        b_rb = QPushButton("הפעל מחדש (מערכת)")
         b_rb.clicked.connect(lambda: self._fb_reboot(""))
-        b_rbl = QPushButton("🚀 עבור למצב Fastboot")
+        c_rb.add_action(b_rb)
+        c_rb.add_action(self._help_dot("fb_reboot"))
+        b_rbl = QPushButton("אתחל ל-Fastboot")
         b_rbl.setToolTip("מפעיל מחדש את המכשיר לתוך מצב ה-Bootloader\u200f (Fastboot)\u200f")
         b_rbl.clicked.connect(lambda: self._fb_reboot("bootloader"))
-        g3.addWidget(b_rb)
-        g3.addWidget(self._help_dot("fb_reboot"))
-        g3.addWidget(b_rbl)
-        g3.addWidget(self._help_dot("fb_reboot_bl"))
-        g3.addStretch(1)
-        v.addWidget(gb3)
+        c_rb.add_action(b_rbl)
+        c_rb.add_action(self._help_dot("fb_reboot_bl"))
+        grid.addWidget(c_rb, 1, 0)
 
-        # פתיחת בוטלאודר — אותה פעולה כמו בלשונית Bootloader (עם האזהרה ו'אישור פעולה')
-        gb4 = QGroupBox("בוטלאודר")
-        g4 = QHBoxLayout(gb4)
-        b_unlock = QPushButton("🔓 פתח בוטלאודר")
+        # ---- בוטלאודר — אותה פעולה כמו בלשונית Bootloader (עם האזהרה ו'אישור פעולה')
+        c_bl = ui_kit.Card("בוטלאודר", "פתיחת הבוטלאודר מאפשרת צריבה", "unlock",
+                           ui_kit.Pill("מוחק נתונים", "danger"), danger=True)
+        b_unlock = QPushButton("פתח בוטלאודר")
         b_unlock.setObjectName("btnDanger")
         b_unlock.setToolTip("fastboot flashing unlock — ⚠️ מוחק את כל הנתונים במכשיר")
         b_unlock.clicked.connect(lambda: self._fastboot_lock_change(True))
-        g4.addWidget(b_unlock)
-        g4.addWidget(self._help_dot("fb_unlock"))
-        g4.addStretch(1)
-        v.addWidget(gb4)
+        c_bl.add_action(b_unlock)
+        c_bl.add_action(self._help_dot("fb_unlock"))
+        grid.addWidget(c_bl, 1, 1)
 
-        # "דרייברים למצב Fastboot" — בסוף הלשונית (לבקשת המשתמש)
-        v.addWidget(gdrv)
+        # ---- דרייברים למצב Fastboot (ברוחב מלא, בתחתית הלשונית)
+        c_drv = ui_kit.Card("דרייברים למצב Fastboot",
+                            "אם המכשיר לא מזוהה במצב Fastboot — צריך את הדרייבר "
+                            "Android Bootloader Interface", "wrench")
+        self.fb_drv_pill = ui_kit.Pill("לא נבדק", "neutral")   # מתעדכן אחרי "בדיקת דרייבר Fastboot"
+        c_drv.add(self._kv_status_box([("ממשק Bootloader של Android", self.fb_drv_pill)]))
+        b_fix = self._fix_driver_button()
+        b_fix.setText("תקן דרייבר למכשיר המחובר")
+        b_fix.setObjectName("btnSoft")
+        c_drv.add_action(b_fix)
+        b_drv_check = QPushButton("בדיקת דרייבר Fastboot")
+        b_drv_check.setToolTip("בדיקה קריאה-בלבד: האם דרייבר Android Bootloader "
+                               "Interface מותקן במחשב הזה")
+        b_drv_check.clicked.connect(lambda: self._check_drivers("fastboot"))
+        c_drv.add_action(b_drv_check)
+        c_drv.add_action(ui_kit.menu_button("התקנה והורדה", [
+            ("התקנת דרייבר Fastboot (מתוך התוכנה)", lambda: self._install_android_drivers("Fastboot")),
+            None,
+            ("הורדת דרייבר Fastboot\u200f (Google)\u200f", lambda: QDesktopServices.openUrl(
+                QUrl("https://developer.android.com/studio/run/win-usb"))),
+        ]))
+        grid.addWidget(c_drv, 2, 0, 1, 2)
+
+        v.addLayout(grid)
         v.addStretch(1)
-
         return w
 
     def _fb_browse_image(self):
@@ -2180,16 +2376,23 @@ class MainWindow(QMainWindow):
             prev = files[-1]
             text = prev.read_text(encoding="utf-8", errors="replace").splitlines()
             muted = theme.colors()["muted"]   # הלוג הקודם — באפור של הערכה
-            self.log_view.append(
+            # רמה "prev" — מוצג רק בסינון "הכל" (אין לשורות האלה רמה משלהן)
+            self._log_add(
+                "prev",
                 f'<p dir="rtl" style="margin:0"><span style="color:{muted}">'
-                f'──── לוג מהפעלה קודמת ({_log_bidi(prev.name)}) ────</span></p>')
+                f'──── לוג מהפעלה קודמת ({_log_bidi(prev.name)}) ────</span></p>',
+                f"──── לוג מהפעלה קודמת ({prev.name}) ────")
             for line in text[-400:]:
                 safe = _log_bidi(line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-                self.log_view.append(
-                    f'<p dir="rtl" style="margin:0"><span style="color:{muted}">{safe}</span></p>')
-            self.log_view.append(
+                self._log_add(
+                    "prev",
+                    f'<p dir="rtl" style="margin:0"><span style="color:{muted}">{safe}</span></p>',
+                    line)
+            self._log_add(
+                "prev",
                 f'<p dir="rtl" style="margin:0"><span style="color:{muted}">'
-                '──── סוף הלוג הקודם — פעולות חדשות מכאן ────</span></p>')
+                '──── סוף הלוג הקודם — פעולות חדשות מכאן ────</span></p>',
+                "──── סוף הלוג הקודם — פעולות חדשות מכאן ────")
         except Exception:
             pass
 
@@ -2232,6 +2435,7 @@ class MainWindow(QMainWindow):
         self._pyenv_quiet = quiet
         if not quiet:
             self.pyenv_text.setPlainText("בודק…")
+            self.pyenv_status.set("בודק…")
 
         def work():
             try:
@@ -2243,6 +2447,7 @@ class MainWindow(QMainWindow):
 
     def _set_pyenv(self, rep):
         self.pyenv_text.setPlainText(rep.summary())
+        self._set_pyenv_status(rep.summary(), rep.ok)
         no_python = rep.active is None
         self._style_install_python(alert=no_python)
         if rep.ok:
@@ -2350,27 +2555,83 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית לוגים
     def _tab_logs(self) -> QWidget:
+        """לשונית לוג (לפי הדמו): סינון הכל / אזהרות / שגיאות, וכרטיס עם הלוג."""
         w = QWidget()
         v = QVBoxLayout(w)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        self._log_entries: list = []   # (רמה, HTML, טקסט) — לסינון ולייצוא
+        self._log_filter = "all"
+        chips = []
+        self._log_chips = {}
+        self._log_chip_group = QButtonGroup(w)
+        self._log_chip_group.setExclusive(True)
+        for key, text in (("all", "הכל"), ("warning", "אזהרות"), ("error", "שגיאות")):
+            b = QPushButton(text)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(key == "all")
+            b.clicked.connect(lambda _=False, k=key: self._set_log_filter(k))
+            self._log_chip_group.addButton(b)
+            self._log_chips[key] = b
+            chips.append(b)
+        v.addWidget(ui_kit.tab_header(
+            "לוג", "כל מה שהתוכנה עשתה — כולל הפקודות המדויקות והפלט שלהן.", extra=chips))
+        card = QFrame()
+        card.setObjectName("card")
+        cv = QVBoxLayout(card)
+        cv.setContentsMargins(22, 20, 22, 20)
+        cv.setSpacing(14)
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
+        # כתב ברוחב קבוע (כמו בדמו); עברית נופלת אוטומטית לגופן שתומך בה
+        mono = QFont("Consolas")
+        mono.setStyleHint(QFont.StyleHint.Monospace)
+        _base = QApplication.instance().font().pointSizeF()
+        mono.setPointSizeF(_base if _base > 0 else 9.0)
+        self.log_view.setFont(mono)
         # כל שורות הלוג מימין לשמאל — גם שורות שמתחילות באנגלית (פלט mtkclient)
         _opt = self.log_view.document().defaultTextOption()
         _opt.setTextDirection(Qt.LayoutDirection.RightToLeft)
         self.log_view.document().setDefaultTextOption(_opt)
-        v.addWidget(self.log_view)
+        cv.addWidget(self.log_view, 1)
         btns = QHBoxLayout()
-        b1 = QPushButton("💾 ייצוא לוג")
+        btns.setSpacing(10)
+        b1 = QPushButton("ייצוא לוג")
         b1.clicked.connect(self._export_log)
-        b2 = QPushButton("🧹 נקה תצוגה")
-        b2.clicked.connect(lambda: self.log_view.clear())
-        b3 = QPushButton("📂 תיקיית הלוגים")
+        b2 = QPushButton("נקה תצוגה")
+        b2.clicked.connect(self._log_clear)
+        b3 = QPushButton("תיקיית הלוגים")
+        b3.setObjectName("btnGhost")
         b3.clicked.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(config.LOGS_DIR))))
         for b in (b1, b2, b3):
             btns.addWidget(b)
         btns.addStretch(1)
-        v.addLayout(btns)
+        cv.addLayout(btns)
+        v.addWidget(card, 1)
         return w
+
+    def _log_add(self, level: str, html: str, plain: str):
+        """שורה ללוג: נשמרת (לסינון ולייצוא), ומוצגת אם היא מתאימה לסינון הנוכחי."""
+        self._log_entries.append((level, html, plain))
+        if self._log_filter == "all" or level == self._log_filter:
+            self.log_view.append(html)
+
+    def _set_log_filter(self, key: str):
+        """סינון הלוג: הכל / אזהרות / שגיאות (שורות הלוג הקודם — רק ב"הכל")."""
+        self._log_filter = key
+        self._log_chips[key].setChecked(True)
+        self.log_view.setUpdatesEnabled(False)
+        self.log_view.clear()
+        for level, html, _plain in self._log_entries:
+            if key == "all" or level == key:
+                self.log_view.append(html)
+        self.log_view.setUpdatesEnabled(True)
+
+    def _log_clear(self):
+        """נקה תצוגה — מנקה את הלוג המוצג (הקובץ בדיסק לא נמחק)."""
+        self._log_entries.clear()
+        self.log_view.clear()
 
     # ------------------------------------------------------------ bus / events
     def _connect_bus(self):
@@ -2386,6 +2647,8 @@ class MainWindow(QMainWindow):
         bus.device_info.connect(self.device_status.set_info)
         bus.device_info.connect(self._on_device_info)
         bus.device_info.connect(self._sync_battery_header)   # סנכרון סוללת הכותרת
+        bus.device_info.connect(self._update_boot_chip)      # "לפי הערוץ" בלשונית Bootloader
+        bus.device_info.connect(self._update_preflash)       # "לפני שצורבים" בלשונית צריבה
         self.device_status.header_refresh.connect(self._sync_battery_header)
         bus.battery_warning.connect(self._show_battery_warning)
         bus.pyenv_report.connect(self._set_pyenv)
@@ -2421,10 +2684,12 @@ class MainWindow(QMainWindow):
         colors = theme.LOG_COLORS[self.dark]
         stamp = datetime.now().strftime("%H:%M:%S")
         safe = _log_bidi(message.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
-        self.log_view.append(
+        self._log_add(
+            level,
             f'<p dir="rtl" style="margin:0">'
             f'<span style="color:{colors["stamp"]}">[{stamp}]</span> '
-            f'<span style="color:{colors.get(level, colors["info"])}">{safe}</span></p>')
+            f'<span style="color:{colors.get(level, colors["info"])}">{safe}</span></p>',
+            f"[{stamp}] {message}")
 
     def _busy_progress(self, on: bool):
         """מד התקדמות 'רץ' (marquee) כשאין אחוזים — כדי שתמיד יהיה סימן חיים."""
@@ -3393,7 +3658,7 @@ class MainWindow(QMainWindow):
         c_drv.add_action(ui_kit.menu_button("התקנה והורדה", [
             ("התקנת דרייבר ADB (מתוך התוכנה)", lambda: self._install_android_drivers("ADB")),
             None,
-            ("הורדת דרייבר ADB (Google)", lambda: QDesktopServices.openUrl(
+            ("הורדת דרייבר ADB\u200f (Google)\u200f", lambda: QDesktopServices.openUrl(
                 QUrl("https://developer.android.com/studio/run/win-usb"))),
         ]))
         grid.addWidget(c_drv, 4, 1)
@@ -4044,7 +4309,7 @@ class MainWindow(QMainWindow):
             bus.device_info.emit(devinfo.DeviceInfo(mode="none"))   # איפוס הכותרת מיד
             return
         names = {"auto": "אוטומטי", "adb": "ADB", "fastboot": "Fastboot",
-                 "brom": "mtkclient (BROM)"}
+                 "brom": "mtkclient\u200f (BROM)\u200f"}
         self._say("info", f"ערוץ תקשורת: {names.get(tool, tool)} — הזיהוי האוטומטי "
                           "ישתמש רק בו ולא ינסה דרכים אחרות.")
         self._probe_device()
@@ -4073,6 +4338,7 @@ class MainWindow(QMainWindow):
         else:
             text = f"עדיין אין חיבור בערוץ {self._channel_label(tool)}"
         self.device_status.set_idle_text(text)
+        self._update_boot_chip()   # התגית "לפי הערוץ" בלשונית Bootloader
 
     # ---------------------------------------------------------- בוטלאודר דרך ADB
     def _adb_boot_read(self):
@@ -4427,6 +4693,7 @@ class MainWindow(QMainWindow):
         self.part_combo.clear()
         for p in table.partitions:
             self.part_combo.addItem(p.name)
+        self._update_preflash()
         self._say("success", f"סה\"כ: {len(table.partitions)} מחיצות, "
                              f"גודל דיסק: {format_size(table.total_size)}")
         log.info("GPT: _set_gpt הסתיים — הצעת הבוטלאודר תוצג אחרי דיאלוג ההצלחה")
@@ -4484,8 +4751,17 @@ class MainWindow(QMainWindow):
                   else drivers.check_mode(kind))
         finally:
             QApplication.restoreOverrideCursor()
+        # התגיות בכרטיסי הדרייברים (מותקן / לא מותקן)
         if kind == "adb" and hasattr(self, "adb_drv_pill"):
             self.adb_drv_pill.set("מותקן במחשב" if st.ok else "לא מותקן", "ok" if st.ok else "warn")
+        elif kind == "fastboot" and hasattr(self, "fb_drv_pill"):
+            self.fb_drv_pill.set("מותקן במחשב" if st.ok else "לא מותקן", "ok" if st.ok else "warn")
+        elif kind == "mtk" and hasattr(self, "mtk_usbdk_pill"):
+            # כל דרייבר בנפרד — לפי שורות הבדיקה ("✅ UsbDk: …" / "✅ דרייבר MediaTek: …")
+            for pill, key in ((self.mtk_usbdk_pill, "UsbDk:"),
+                              (self.mtk_vcom_pill, "דרייבר MediaTek:")):
+                ok = any(ln.startswith("✅") and key in ln for ln in st.lines)
+                pill.set("מותקן במחשב" if ok else "לא מותקן", "ok" if ok else "warn")
         text = drivers.format_status(st)
         for line in text.splitlines():
             self._say("info" if st.ok else "warning", line.strip())
@@ -4901,7 +5177,7 @@ class MainWindow(QMainWindow):
 
     def _channel_label(self, ch: str) -> str:
         return {"adb": "ADB", "fastboot": "Fastboot", "auto": "אוטומטי",
-                "brom": "mtkclient (BROM)", "none": "לא מזוהה"}.get(ch, ch)
+                "brom": "mtkclient\u200f (BROM)\u200f", "none": "לא מזוהה"}.get(ch, ch)
 
     def _bootloader_check_router(self):
         """בדיקת מצב בוטלאודר — לפי ערוץ התקשורת הפעיל."""
@@ -5017,7 +5293,8 @@ class MainWindow(QMainWindow):
         if path:
             try:
                 with open(path, "w", encoding="utf-8") as f:
-                    f.write(self.log_view.toPlainText())
+                    # כל השורות — גם כשהתצוגה מסוננת כרגע (אזהרות / שגיאות)
+                    f.write("\n".join(plain for _lvl, _html, plain in self._log_entries))
                 self._say("success", f"לוג יוצא אל {path}")
             except OSError as e:
                 QMessageBox.critical(self, "שגיאה", f"כתיבת לוג נכשלה: {e}")

@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Callable, Iterable, Optional
 
 from PySide6.QtCore import QByteArray, QElapsedTimer, QEvent, QObject, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication,
@@ -76,6 +76,11 @@ _ICONS = {
     "spark": '<path d="M12 2v6M12 22v-6M4.9 4.9l4.2 4.2M14.9 14.9l4.2 4.2M2 12h6M22 12h-6"/>',
     "scroll": '<path d="M8 3h9a2 2 0 0 1 2 2v12M8 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2M9 8h6M9 12h6"/>',
     "alert": '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    "back": '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    "chip": ('<rect x="5" y="5" width="14" height="14" rx="3"/>'
+             '<path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>'),
+    "phone": '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    "archive": '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
 }
 _FILLED = {"folder_fill": "folder"}   # גרסה מלאה (ממולאת) של סמל
 
@@ -368,6 +373,12 @@ class Card(QFrame):
     def add_layout(self, layout):
         self.body.addLayout(layout)
 
+    def expand_body(self):
+        """התוכן ממלא את כל גובה הכרטיס (במקום רווח לפני שורת הפעולות) — לטבלה גדולה."""
+        lay = self.layout()
+        lay.setStretch(2, 0)                 # הרווח המתרחב שלפני שורת הפעולות
+        lay.setStretchFactor(self.body, 1)
+
     def add_action(self, widget: QWidget, stretch: int = 0):
         """מוסיף לשורת הפעולות (לפני הרווח המתרחב — כך הכפתורים מתחילים מימין).
         stretch > 0 — הרכיב ממלא את השטח הפנוי (למשל שורת "נבחר: …"), והפעולות
@@ -658,6 +669,7 @@ class Modal(QDialog):
         self.setModal(True)
         self._key = ""
         self._default: Optional[QPushButton] = None
+        self._focus: Optional[QWidget] = None   # שדה שיקבל את הפוקוס בפתיחה (למשל שדה קלט)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(16, 16, 16, 16)
         outer.addStretch(1)
@@ -747,10 +759,15 @@ class Modal(QDialog):
         self.exec()
         return self._key
 
+    def focus_on(self, widget: QWidget):
+        """השדה שיקבל את הפוקוס כשהחלון נפתח (במקום כפתור ברירת המחדל)."""
+        self._focus = widget
+
     def showEvent(self, event):
         super().showEvent(event)
-        if self._default is not None:
-            QTimer.singleShot(0, self._default.setFocus)
+        target = self._focus or self._default
+        if target is not None:
+            QTimer.singleShot(0, target.setFocus)
 
     def paintEvent(self, event):
         p = QPainter(self)
@@ -806,6 +823,59 @@ def mono_box(lines: Iterable[str]) -> QFrame:
     lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignAbsolute)
     v.addWidget(lbl)
     return box
+
+
+class Swatch(QWidget):
+    """דוגמת צבעים בפסים (לכרטיס בחירת ערכת צבע) — הצבע הראשון מימין, כמו בדמו."""
+
+    def __init__(self, colors: Iterable[str], height: int = 38):
+        super().__init__()
+        self._colors = list(colors)
+        self.setFixedHeight(height)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), 8, 8)
+        p.setClipPath(path)
+        n = max(1, len(self._colors))
+        w = self.width() / n
+        rtl = self.layoutDirection() == Qt.LayoutDirection.RightToLeft
+        for i, color in enumerate(self._colors):
+            x = self.width() - (i + 1) * w if rtl else i * w
+            p.fillRect(QRectF(x, 0, w + 1, self.height()), QColor(color))
+        p.end()
+
+
+class ThemeCard(QFrame):
+    """כרטיס בחירת ערכת צבע (כמו בדמו): דוגמת צבעים + שם; הנבחר — מסגרת בצבע ההדגשה."""
+
+    clicked = Signal()
+
+    def __init__(self, name: str, colors: Iterable[str], selected: bool = False):
+        super().__init__()
+        self.setObjectName("themeCard")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(10, 10, 10, 10)
+        v.setSpacing(8)
+        v.addWidget(Swatch(colors))
+        self.name = QLabel(name)
+        self.name.setObjectName("themeName")
+        v.addWidget(self.name)
+        self.set_selected(selected)
+
+    def set_selected(self, on: bool):
+        for w in (self, self.name):
+            w.setProperty("selected", "true" if on else "false")
+            w.style().unpolish(w)
+            w.style().polish(w)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.rect().contains(event.position().toPoint()):
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
 
 def collapsible(title: str, content: QWidget) -> QWidget:

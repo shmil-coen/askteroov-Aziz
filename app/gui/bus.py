@@ -40,6 +40,7 @@ class Bus(QObject):
     pyinstall_done = Signal(object)      # (הצליח, הודעה) — התקנת פייתון + ספריות אוטומטית
     driver_fix_result = Signal(object)   # list[(מצב, סוג, טקסט)] — תוצאת "תקן דרייבר למכשיר המחובר"
     root_pipeline_step = Signal(object)  # dict — התקדמות פייפליין הרוטינג האוטומטי (לשונית בפיתוח)
+    toast = Signal(object)               # (סוג, טקסט) — הודעה בצד מ-thread רקע
 
 
 bus = Bus()

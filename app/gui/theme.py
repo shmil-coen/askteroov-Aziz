@@ -227,6 +227,8 @@ QTabBar::tab {{ background: transparent; color: {c['muted']}; border: none; bord
                margin: 5px 2px; }}
 QTabBar::tab:hover:!selected {{ background: {c['surface2']}; color: {c['text']}; }}
 QTabBar::tab:selected {{ background: {c['btn']}; color: {c['btn_text']}; }}
+/* בשורת הלשוניות הראשית ה"גלולה" של הלשונית הנבחרת מצוירת בקוד ונעה ביניהן (כמו בדמו) */
+QTabBar#mainTabBar::tab:selected {{ background: transparent; }}
 
 /* ---- מד התקדמות ---- */
 QProgressBar {{ background: {c['surface2']}; border: none; border-radius: 6px; min-height: 12px; max-height: 12px;
@@ -368,6 +370,25 @@ QLabel#secTitle {{ font-size: 10.5pt; font-weight: 600; }}
 QPushButton#linkBtn {{ background: transparent; border: none; color: {c['accent']}; padding: 2px 0px;
                       min-height: 0px; font-size: 10.5pt; }}
 QPushButton#linkBtn:hover {{ background: transparent; text-decoration: underline; }}
+
+/* ---- חלון ההגדרות (כמו בדמו) ---- */
+QFrame#settingsPanel {{ background: {c['surface']}; border: 1px solid {c['border']}; border-radius: 16px; }}
+QLabel#setTitle {{ font-size: 13.5pt; font-weight: 700; }}
+QLabel#setLabel {{ font-size: 11pt; font-weight: 600; }}
+QFrame#themeCard {{ border: 2px solid {c['border']}; border-radius: 12px; background: transparent; }}
+QFrame#themeCard[selected="true"] {{ border-color: {c['accent']}; }}
+QLabel#themeName {{ font-size: 10.5pt; }}
+QLabel#themeName[selected="true"] {{ font-weight: 600; }}
+
+/* ---- בנק הסקטארים: רשימת הקבוצות ---- */
+QPushButton#bankGroup {{ border: none; border-radius: 10px; background: transparent; min-height: 0px;
+                        padding: 0px; text-align: right; }}
+QPushButton#bankGroup:hover {{ background: {c['surface2']}; }}
+QPushButton#bankGroup:checked {{ background: {c['accent_soft']}; }}
+QLabel#bankGroupName {{ font-size: 10.5pt; }}
+QLabel#bankGroupName[selected="true"] {{ color: {c['accent']}; font-weight: 600; }}
+QLabel#countBadge {{ color: {c['muted']}; background: {c['surface2']}; border-radius: 9px;
+                    padding: 1px 8px; font-size: 9pt; }}
 
 /* ---- תצוגה מקדימה של קובץ (Scatter) ---- */
 QPlainTextEdit#preview {{ font-family: Consolas, 'Cascadia Mono', monospace; }}

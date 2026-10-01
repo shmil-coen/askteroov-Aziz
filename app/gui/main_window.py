@@ -13,8 +13,9 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, QUrl, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QColor, QDesktopServices, QFont
+from PySide6.QtCore import (QAbstractAnimation, QEasingCurve, QPoint, QRectF, QSize, Qt, QUrl,
+                            QTimer, QVariantAnimation)
+from PySide6.QtGui import QAction, QActionGroup, QColor, QDesktopServices, QFont, QIcon, QPainter
 from PySide6.QtWidgets import (
     QAbstractButton,
     QApplication,
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QGridLayout,
     QSizePolicy,
     QStackedWidget,
@@ -269,7 +271,7 @@ class _TextEditDialog(QDialog):
         lay.addWidget(self._edit, 1)
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Save
                               | QDialogButtonBox.StandardButton.Cancel)
-        bb.button(QDialogButtonBox.StandardButton.Save).setText("💾 שמור והעלה")
+        bb.button(QDialogButtonBox.StandardButton.Save).setText("שמור והעלה")
         bb.button(QDialogButtonBox.StandardButton.Cancel).setText("ביטול")
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
@@ -288,6 +290,44 @@ class _MainTabBar(QTabBar):
     def __init__(self, *a, **k):
         super().__init__(*a, **k)
         self._branch: set[int] = set()
+        # ה"גלולה" של הלשונית הנבחרת — מצוירת כאן ונעה בהחלקה ללשונית החדשה (כמו בדמו)
+        self._pill = QRectF()
+        self._anim = QVariantAnimation(self)
+        self._anim.setDuration(320)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._anim.valueChanged.connect(self._on_pill_step)
+        self._prev_index = -1   # הלשונית שממנה הגלולה יוצאת
+        self.currentChanged.connect(self._slide_pill)
+        self.tabMoved.connect(lambda *_: setattr(self, "_prev_index", self.currentIndex()))
+
+    def _pill_rect(self, i: int) -> QRectF:
+        """מקום הגלולה של לשונית i — המלבן שהלשונית מצוירת בו (שוליים 5/2 מ-theme.py)."""
+        if i < 0:
+            return QRectF()
+        r = QRectF(self.tabRect(i))
+        top = 5 + (int(r.height() * (1 - self.BRANCH_SCALE)) if i in self._branch else 0)
+        return r.adjusted(2, top, -2, -5)
+
+    def _slide_pill(self, i: int):
+        end = self._pill_rect(i)
+        if self._anim.state() == QAbstractAnimation.State.Running:
+            start = self._pill   # באמצע תנועה — ממשיכים מהמקום הנוכחי
+        else:
+            # נקודת ההתחלה מחושבת עכשיו, מהלשונית הקודמת (לא ממיקום שמור ישן —
+            # הוא עלול להיות מלפני שהחלון קיבל את גודלו הסופי)
+            prev = self._prev_index
+            start = self._pill_rect(prev) if 0 <= prev < self.count() and prev != i else end
+        self._prev_index = i
+        if start.isNull():
+            start = end
+        self._anim.stop()
+        self._anim.setStartValue(start)
+        self._anim.setEndValue(end)
+        self._anim.start()
+
+    def _on_pill_step(self, value):
+        self._pill = value
+        self.update()
 
     def set_branches(self, idxs) -> None:
         self._branch = set(idxs)
@@ -303,6 +343,18 @@ class _MainTabBar(QTabBar):
     def paintEvent(self, event):
         from PySide6.QtWidgets import QStylePainter, QStyleOptionTab, QStyle
         p = QStylePainter(self)
+        # הגלולה — לפני הלשוניות (הרקע של הלשונית הנבחרת שקוף ב-theme.py)
+        running = self._anim.state() == QAbstractAnimation.State.Running
+        pill = self._pill if running else self._pill_rect(self.currentIndex())
+        if not running:
+            self._pill = pill
+        if not pill.isNull():
+            p.save()
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(theme.colors()["btn"]))
+            p.drawRoundedRect(pill, 10, 10)
+            p.restore()
         base_font = self.font()
         small_font = QFont(base_font)
         small_font.setPointSizeF(max(6.0, base_font.pointSizeF() * self.BRANCH_SCALE))
@@ -486,6 +538,115 @@ def _log_bidi(text: str) -> str:
     return "\u2066" + text + "\u2069"
 
 
+class _SettingsPopup(QWidget):
+    """חלון ההגדרות (כמו בדמו): נפתח מתחת לגלגל השיניים ונסגר בלחיצה מחוץ לו —
+    שם וגרסה · ערכת צבע (שני כרטיסים עם דוגמת צבעים) · סדר לשוניות עצמאי · אודות."""
+
+    def __init__(self, win: "MainWindow"):
+        super().__init__(win, Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        self._win = win
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(12, 10, 12, 18)   # מקום לצל
+        panel = QFrame()
+        panel.setObjectName("settingsPanel")
+        panel.setFixedWidth(380)
+        outer.addWidget(panel)
+        shadow = QGraphicsDropShadowEffect(panel)
+        shadow.setBlurRadius(30)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(0, 0, 0, 140))
+        panel.setGraphicsEffect(shadow)
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(8, 8, 8, 8)
+        v.setSpacing(0)
+
+        def section(row: bool = False):
+            box = QWidget()
+            lay = QHBoxLayout(box) if row else QVBoxLayout(box)
+            lay.setContentsMargins(14, 14, 14, 14)
+            lay.setSpacing(14 if row else 8)
+            return box, lay
+
+        def separator():
+            s = QFrame()
+            s.setObjectName("kvSep")
+            s.setFixedHeight(1)
+            v.addWidget(s)
+
+        def label(text: str, name: str) -> QLabel:
+            lbl = QLabel(text)
+            lbl.setObjectName(name)
+            lbl.setWordWrap(True)
+            return lbl
+
+        # שם התוכנה והגרסה
+        box, lay = section()
+        lay.addWidget(label(config.APP_TITLE.split(" — ")[0], "setTitle"))   # "הסקטארוב", כמו בדמו
+        lay.addWidget(label(f"גרסה {config.APP_VERSION}", "hint"))
+        v.addWidget(box)
+        separator()
+        # ערכת צבע — שני כרטיסים עם דוגמת הצבעים; הנבחר מודגש
+        box, lay = section()
+        lay.addWidget(label("ערכת צבע", "setLabel"))
+        cards = QHBoxLayout()
+        cards.setSpacing(8)
+        self._cards = {}
+        for dark in (True, False):   # גרפיט רך (ברירת המחדל) — ראשון, מימין
+            pal = theme.PALETTES[dark]
+            card = ui_kit.ThemeCard(pal["name"], (pal["bg"], pal["surface"], pal["btn"]), win.dark == dark)
+            card.setToolTip("הבחירה נשמרת להפעלה הבאה")
+            card.clicked.connect(lambda d=dark: self._pick(d))
+            cards.addWidget(card, 1)
+            self._cards[dark] = card
+        lay.addLayout(cards)
+        lay.addWidget(label("הבחירה נשמרת להפעלה הבאה · ברירת המחדל: "
+                            f"{theme.PALETTES[True]['name']}", "hint"))
+        v.addWidget(box)
+        separator()
+        # סדר לשוניות עצמאי — מתג, והלחיצה מחילה מיד
+        box, lay = section(row=True)
+        col = QVBoxLayout()
+        col.setSpacing(3)
+        col.addWidget(label("סדר לשוניות עצמאי", "setLabel"))
+        col.addWidget(label("כשדלוק — גוררים לשוניות כדי לשנות את הסדר. "
+                            "כיבוי מחזיר את הסדר הקבוע.", "hint"))
+        lay.addLayout(col, 1)
+        sw = _ToggleSwitch(box, height=26)
+        sw.setChecked(win._flex_tabs)
+        sw.setToolTip("דלוק: אפשר לגרור לשוניות ולשנות את סדרן (הסדר נשמר להפעלה הבאה).\n"
+                      "כבוי: חוזר לסדר ברירת המחדל של התוכנה.")
+        sw.toggled.connect(win._set_flex_tabs)
+        lay.addWidget(sw, 0, Qt.AlignmentFlag.AlignVCenter)
+        v.addWidget(box)
+        separator()
+        # אודות — הטקסט של היום
+        box, lay = section()
+        lay.addWidget(label("אודות", "setLabel"))
+        about = label(win._about_text(), "hint")
+        about.setTextFormat(Qt.TextFormat.RichText)
+        lay.addWidget(about)
+        v.addWidget(box)
+
+    def _pick(self, dark: bool):
+        self._win._set_theme(dark)
+        for d, card in self._cards.items():
+            card.set_selected(d == dark)
+
+    def open_below(self, anchor: QWidget):
+        """פותח מתחת לגלגל השיניים (בקצה השמאלי של הפס העליון, כמו בדמו), בתוך המסך."""
+        self.adjustSize()
+        pos = anchor.mapToGlobal(QPoint(0, anchor.height()))
+        x, y = pos.x() - 12, pos.y() - 2
+        screen = anchor.screen().availableGeometry() if anchor.screen() else None
+        if screen is not None:
+            x = max(screen.left(), min(x, screen.right() - self.width()))
+            y = max(screen.top(), min(y, screen.bottom() - self.height()))
+        self.move(x, y)
+        self.show()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -588,7 +749,7 @@ class MainWindow(QMainWindow):
         except (RuntimeError, ValueError, OSError) as e:
             self._say("error", str(e))
             QMessageBox.critical(self, "שגיאה – לא ניתן לבצע",
-                                 f"{e}\n\nבדוק את ההוראות (כפתור ❓ הוראות).")
+                                 f"{e}\n\nבדוק את ההוראות (כפתור ההוראות בראש הלשונית).")
             return None
 
     def _request(self, job: Job | None) -> bool:
@@ -655,6 +816,7 @@ class MainWindow(QMainWindow):
     def _build_ui(self):
         tb = QToolBar("תצוגה")
         tb.setMovable(False)
+        tb.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)   # סמל + טקסט (כפתור הבנק)
         self.toolbar = tb
         self.addToolBar(tb)
         # לוגו התוכנה — בקצה הימני של הפס העליון (כמו בדמו), לפני בנק הסקטארים
@@ -669,7 +831,8 @@ class MainWindow(QMainWindow):
         self.bank_glyph = BankGlyph()
         self.bank_glyph.setVisible(False)   # מוצג רק כשבנק הוא התצוגה הפעילה
         tb.addWidget(self.bank_glyph)
-        self.bank_action = QAction("🗂️ בנק סקטארים", self)
+        self.bank_action = QAction(ui_kit.svg_icon("archive", theme.colors()["text"], 17),
+                                   "בנק סקטארים", self)
         self.bank_action.setCheckable(True)
         self.bank_action.setToolTip("פתיחת בנק הסקטארים — ארכיון קובצי Scatter")
         self.bank_action.triggered.connect(self._toggle_bank_view)
@@ -715,30 +878,29 @@ class MainWindow(QMainWindow):
         self.device_tab = self._tab_device()
         # בנק הסקטארים — לא בשורת הלשוניות: כפתור ייעודי בפס העליון (מופיע למטה)
         self.bank_tab = self._tab_scatter_bank()
-        self.tabs.addTab(self.device_tab, "mtkclient")
+        self.tabs.addTab(self.device_tab, " mtkclient")
         # שאיבה וצריבה — צמוד ל-mtkclient (הן מתבצעות דרכו)
         rb_tab = self._scrollable(self._tab_readback())
         self.tabs.addTab(rb_tab, " שאיבה (Readback)")
-        self.tabs.setTabIcon(self.tabs.indexOf(rb_tab), self.icon_read)
         fl_tab = self._scrollable(self._tab_flash())
         self.tabs.addTab(fl_tab, " צריבה (Download)")
-        self.tabs.setTabIcon(self.tabs.indexOf(fl_tab), self.icon_flash)
         self._rb_tab, self._fl_tab = rb_tab, fl_tab   # לעדכון צבע הסמלים בהחלפת ערכה
         # Scatter — רביעי מימין, צמוד לצריבה (לבקשת המשתמש)
         self.scatter_tab = self._scrollable(self._tab_scatter())
-        self.tabs.addTab(self.scatter_tab, "📄 Scatter")
+        self.tabs.addTab(self.scatter_tab, " Scatter")
         self.adb_tab = self._scrollable(self._tab_adb())
-        self.tabs.addTab(self.adb_tab, "📱 ADB")
+        self.tabs.addTab(self.adb_tab, " ADB")
         # Fastboot צמוד ל-ADB (לבקשת המשתמש)
         self.fastboot_tab = self._scrollable(self._tab_fastboot())
-        self.tabs.addTab(self.fastboot_tab, "⚡ Fastboot")
+        self.tabs.addTab(self.fastboot_tab, " Fastboot")
         self.boot_tab = self._scrollable(self._tab_bootloader())
-        self.tabs.addTab(self.boot_tab, "🔓 Bootloader")
+        self.tabs.addTab(self.boot_tab, " Bootloader")
         self.dev_tab = self._scrollable(self._tab_dev_features())
-        self.tabs.addTab(self.dev_tab, "✨ בפיתוח")
+        self.tabs.addTab(self.dev_tab, " בפיתוח")
         # לוג — אחרונה משמאל, בקצה השורה (לבקשת המשתמש)
         self.logs_tab = self._tab_logs()
-        self.tabs.addTab(self.logs_tab, "📜 לוג")
+        self.tabs.addTab(self.logs_tab, " לוג")
+        self._apply_tab_icons()           # סמלים מצוירים בכל הלשוניות (במקום אימוג'י)
         self._apply_equal_tab_widths()   # לשוניות שוות על פני כל השורה
         # סדר ברירת המחדל (העיצוב הקבוע) — הסדר שאליו חוזרים כשהסדר הגמיש כבוי
         self._default_tab_order = [self.tabs.widget(i) for i in range(self.tabs.count())]
@@ -813,7 +975,7 @@ class MainWindow(QMainWindow):
         self.progress.setValue(0)
         self.progress.setTextVisible(False)   # האחוזים מוצגים בטקסט המצב
         bl.addWidget(self.progress, 1)
-        self.cancel_btn = QPushButton("⏹ בטל פעולה")
+        self.cancel_btn = QPushButton("בטל פעולה")
         self.cancel_btn.setEnabled(False)
         self.cancel_btn.clicked.connect(self._cancel_job)
         bl.addWidget(self.cancel_btn)
@@ -900,6 +1062,37 @@ class MainWindow(QMainWindow):
                 f"QTabBar::tab {{ min-width: {w}px; padding: 8px 10px; }}")
             self._mark_branch_tabs()
 
+    def _apply_tab_icons(self):
+        """סמלים מצוירים בלשוניות (במקום אימוג'י): בצבע ההדגשה, ובלשונית הנבחרת — בצבע
+        הטקסט שעל הגלולה. לפי הווידג'ט, כך שעובד גם אחרי שינוי סדר הלשוניות."""
+        c = theme.colors()
+
+        def two_state(normal: QIcon, selected: QIcon) -> QIcon:
+            icon = QIcon()
+            icon.addPixmap(normal.pixmap(QSize(18, 18)), QIcon.Mode.Normal, QIcon.State.Off)
+            icon.addPixmap(selected.pixmap(QSize(18, 18)), QIcon.Mode.Normal, QIcon.State.On)
+            return icon
+
+        kinds = {self.device_tab: "chip", self.scatter_tab: "file", self.adb_tab: "phone",
+                 self.fastboot_tab: "bolt", self.boot_tab: "lock", self.dev_tab: "spark",
+                 self.logs_tab: "scroll"}
+        icons = {w: two_state(ui_kit.svg_icon(k, c["accent"], 18), ui_kit.svg_icon(k, c["btn_text"], 18))
+                 for w, k in kinds.items()}
+        icons[self._rb_tab] = two_state(guiicons.curved_left_arrow_icon(color=c["accent"]),
+                                        guiicons.curved_left_arrow_icon(color=c["btn_text"]))
+        icons[self._fl_tab] = two_state(guiicons.down_arrow_icon(color=c["accent"]),
+                                        guiicons.down_arrow_icon(color=c["btn_text"]))
+        for w, icon in icons.items():
+            i = self.tabs.indexOf(w)
+            if i >= 0:
+                self.tabs.setTabIcon(i, icon)
+
+    @staticmethod
+    def _tab_key(text: str) -> str:
+        """מפתח להשוואת שם לשונית — בלי סמלים ורווחים, כך שסדר ששמור מגרסה קודמת
+        (עם אימוג'י בשם) עדיין מתאים לשמות החדשים."""
+        return "".join(ch for ch in text if ch.isalnum())
+
     def _mark_branch_tabs(self):
         """מסמן את לשוניות ה'ענף' (שאיבה/צריבה/Scatter) שיצוירו מעט קטן יותר."""
         bar = self.tabs.tabBar()
@@ -923,71 +1116,9 @@ class MainWindow(QMainWindow):
         return f
 
     def _open_settings_menu(self):
-        """תפריט ההגדרות (סמל בלבד): מספר גרסה · אודות · מתג 'סדר לשוניות גמיש'.
-
-        התפריט מוגדל פי 2 — גופן, שורות ומתג.  'סדר לשוניות גמיש' הוא מתג
-        (לא תיבת סימון), והלחיצה עליו מחילה מיד את המצב החדש.  ה'אודות' כתוב
-        בתוך התפריט עצמו, מתחת למילה — בלי חלון קופץ.
-        """
-        from PySide6.QtWidgets import QMenu, QWidgetAction
-        m = QMenu(self)
-        font = QFont(QApplication.instance().font())
-        base = font.pointSizeF() if font.pointSizeF() > 0 else 9.0
-        font.setPointSizeF(round(base * self._SETTINGS_MENU_SCALE, 1))
-        m.setFont(font)
-        small = self._settings_small_font()   # המילים והסמלים המוקטנים בתפריט
-        ver = m.addAction(f"גרסה v{config.APP_VERSION}")
-        ver.setEnabled(False)   # מציג מידע בלבד — לא לחיץ
-        m.addSeparator()
-        # 'אודות' — כתוב בתפריט עצמו, מתחת למילה; לא נפתח חלון קופץ/דיאלוג
-        about_row = QWidget()
-        ab = QVBoxLayout(about_row)
-        ab.setContentsMargins(12, 4, 12, 6)
-        ab.setSpacing(6)
-        head_row = QHBoxLayout()
-        head_row.setSpacing(8)
-        head_icon = QLabel()
-        head_icon.setPixmap(guiicons.round_info_pixmap(round(small.pointSizeF() * 1.35),
-                                                       color=theme.colors()["accent"]))
-        head_text = QLabel("אודות")
-        head_text.setFont(small)   # אותו גופן כמו שאר המילים בתפריט — לא מודגש
-        head_row.addWidget(head_icon)
-        head_row.addWidget(head_text)
-        head_row.addStretch(1)
-        ab.addLayout(head_row)
-        about_txt = QLabel(self._about_text())
-        about_txt.setTextFormat(Qt.TextFormat.RichText)
-        about_txt.setWordWrap(True)
-        about_txt.setFixedWidth(int(font.pointSizeF() * 26))
-        ab.addWidget(about_txt)
-        act_about = QWidgetAction(m)
-        act_about.setDefaultWidget(about_row)
-        m.addAction(act_about)
-        m.addSeparator()
-        # 'סדר לשוניות גמיש' — שורה עם מתג; הלחיצה מחילה מיד והתפריט נשאר פתוח
-        row = QWidget()
-        rl = QHBoxLayout(row)
-        rl.setContentsMargins(12, 6, 12, 6)
-        rl.setSpacing(14)
-        lbl = QLabel("סדר לשוניות עצמאית")
-        lbl.setFont(small)   # המילה והמתג באותו גודל מוקטן
-        # המתג קטן ל-35% מגודלו הקודם (לבקשת המשתמש)
-        sw = _ToggleSwitch(row, height=round(26 * self._SETTINGS_MENU_SCALE * 0.35))
-        sw.setChecked(self._flex_tabs)
-        sw.setToolTip("דלוק: אפשר לגרור לשוניות ולשנות את סדרן (הסדר נשמר להפעלה הבאה).\n"
-                      "כבוי: חוזר לסדר ברירת המחדל של התוכנה.")
-        sw.toggled.connect(self._set_flex_tabs)
-        rl.addWidget(lbl)
-        rl.addStretch(1)
-        rl.addWidget(sw)
-        act = QWidgetAction(m)
-        act.setDefaultWidget(row)
-        m.addAction(act)
-        # בחירת העיצוב — עברה מהפס העליון לכאן, מתחת למתג הסדר (לבקשת המשתמש)
-        m.addSeparator()
-        m.addAction(self.dark_action)    # גרפיט רך — ברירת המחדל, ראשון
-        m.addAction(self.light_action)   # כחול לילה
-        m.exec(self.toolbar.mapToGlobal(self.toolbar.rect().bottomLeft()))
+        """חלון ההגדרות (כמו בדמו) — מתחת לגלגל השיניים. נסגר בלחיצה מחוץ לו."""
+        anchor = self.toolbar.widgetForAction(self.settings_action) or self.toolbar
+        _SettingsPopup(self).open_below(anchor)
 
     def _about_text(self) -> str:
         """טקסט ה'אודות' שמוצג בתפריט ההגדרות — תיאור המוצר והמפתח/ת.
@@ -1042,9 +1173,10 @@ class MainWindow(QMainWindow):
         saved = theme.load_tab_order()
         if not saved:
             return
-        rank = {t: i for i, t in enumerate(saved)}
+        # השוואה בלי סמלים ורווחים — סדר ששמור מגרסה קודמת (עם אימוג'י בשם) עדיין מתאים
+        rank = {self._tab_key(t): i for i, t in enumerate(saved)}
         widgets = sorted(
-            ((rank.get(self.tabs.tabText(i), len(saved) + i), self.tabs.widget(i))
+            ((rank.get(self._tab_key(self.tabs.tabText(i)), len(saved) + i), self.tabs.widget(i))
              for i in range(self.tabs.count())),
             key=lambda pair: pair[0])
         bar = self.tabs.tabBar()
@@ -1075,6 +1207,7 @@ class MainWindow(QMainWindow):
         self._recolor_tables()
         self._refresh_button_icons()
         self._say("info", f"עיצוב {theme.PALETTES[on]['name']} הופעל")
+        self._toast("info", f"עיצוב {theme.PALETTES[on]['name']} הופעל")
 
         self._mtk_color = theme.mtk_color
         self._warn_color = theme.warn_color
@@ -1091,11 +1224,12 @@ class MainWindow(QMainWindow):
             self.btn_flash_main.setIcon(guiicons.down_arrow_icon(color="#ffffff"))
         self.icon_read = guiicons.curved_left_arrow_icon(color=c["accent"])
         self.icon_flash = guiicons.down_arrow_icon(color=c["accent"])
-        for w, icon in ((getattr(self, "_rb_tab", None), self.icon_read),
-                        (getattr(self, "_fl_tab", None), self.icon_flash)):
-            i = self.tabs.indexOf(w) if w is not None else -1
-            if i >= 0:
-                self.tabs.setTabIcon(i, icon)   # לפי הווידג'ט — עובד גם אחרי שינוי סדר הלשוניות
+        if hasattr(self, "logs_tab"):
+            self._apply_tab_icons()   # כל הלשוניות — לפי הווידג'ט, גם אחרי שינוי סדר
+        if hasattr(self, "bank_action"):
+            self.bank_action.setIcon(ui_kit.svg_icon("archive", c["text"], 17))
+        if hasattr(self, "_bank_back_btn"):
+            self._bank_back_btn.setIcon(ui_kit.svg_icon("back", c["text"], 18))
         if hasattr(self, "settings_action"):
             self.settings_action.setIcon(guiicons.gear_icon(color=c["muted"]))
         for b in self.findChildren(QPushButton):
@@ -1472,7 +1606,7 @@ class MainWindow(QMainWindow):
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
         except OSError as e:
-            QMessageBox.critical(self, "שגיאה", f"קריאה נכשלה: {e}")
+            self._toast("err", f"קריאה נכשלה: {e}")
             return
         # התצוגה המקדימה — בתוך הכרטיס (במקום חלון)
         self.scatter_preview.setPlainText(text)
@@ -1480,171 +1614,308 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------ לשונית בנק סקטארים
     def _tab_scatter_bank(self) -> QWidget:
+        """בנק הסקטארים (כמו בדמו): "חזור לתוכנה" · כרטיס הקבוצות (לפי מעבד / לפי מכשיר)
+        · כרטיס הקבצים — הטבלה, תצוגת התוכן בתוך הכרטיס, והפעולות."""
         w = QWidget()
         v = QVBoxLayout(w)
-        back_row = QHBoxLayout()
-        b_back = QPushButton("🔙 חזור לתוכנה")
-        b_back.setToolTip("סגירת בנק הסקטארים וחזרה ללשוניות התוכנה")
-        b_back.clicked.connect(self._bank_back)
-        back_row.addWidget(b_back)
-        back_row.addStretch(1)
-        v.addLayout(back_row)
+        v.setContentsMargins(0, 4, 0, 4)
+        v.setSpacing(14)
+        head = QHBoxLayout()
+        head.setSpacing(16)
+        self._bank_back_btn = QPushButton(" חזור לתוכנה")
+        self._bank_back_btn.setIcon(ui_kit.svg_icon("back", theme.colors()["text"], 18))
+        self._bank_back_btn.setToolTip("סגירת בנק הסקטארים וחזרה ללשוניות התוכנה")
+        self._bank_back_btn.clicked.connect(self._bank_back)
+        head.addWidget(self._bank_back_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        head.addWidget(ui_kit.tab_header(
+            "בנק סקטארים",
+            "ארכיון קובצי Scatter (SP Flash Tool) — מסודר לפי מעבד או לפי מכשיר."), 1)
+        v.addLayout(head)
+
+        body = QHBoxLayout()
+        body.setSpacing(14)
+        # ---- כרטיס הקבוצות: לפי מעבד / לפי מכשיר, ורשימה עם מספר הקבצים בכל קבוצה
+        side = QFrame()
+        side.setObjectName("card")
+        side.setFixedWidth(280)
+        sv = QVBoxLayout(side)
+        sv.setContentsMargins(16, 16, 16, 16)
+        sv.setSpacing(12)
+        self._bank_by = "cpu"
+        self._bank_filter = None
+        seg = QHBoxLayout()
+        seg.setSpacing(6)
+        seg_group = QButtonGroup(side)
+        seg_group.setExclusive(True)
+        for key, text in (("cpu", "לפי מעבד"), ("device", "לפי מכשיר")):
+            b = QPushButton(text)
+            b.setObjectName("chip")
+            b.setCheckable(True)
+            b.setChecked(key == "cpu")
+            b.clicked.connect(lambda _=False, k=key: self._bank_set_grouping(k))
+            seg_group.addButton(b)
+            seg.addWidget(b, 1)
+        sv.addLayout(seg)
+        self._bank_groups_lay = QVBoxLayout()
+        self._bank_groups_lay.setSpacing(4)
+        sv.addLayout(self._bank_groups_lay)
+        sv.addStretch(1)
         info = QLabel(
             "כאן נשמרים קובצי Scatter שהתוכנה יצרה או שהזנת ידנית, מאורגנים "
             "לפי מעבד או מכשיר. אפשר גם פשוט להעתיק קבצים ידנית לתיקיות שבבנק "
             "וללחוץ רענון.")
+        info.setObjectName("hint")
         info.setWordWrap(True)
-        v.addWidget(info)
+        sv.addWidget(info)
+        b_folder = QPushButton("פתח את תיקיית הבנק")
+        b_folder.setObjectName("btnGhost")
+        b_folder.clicked.connect(self._bank_open_folder)
+        sv.addWidget(b_folder, 0, Qt.AlignmentFlag.AlignLeft)   # בממשק מימין לשמאל — בצד ימין
+        body.addWidget(side)
 
-        filter_row = QHBoxLayout()
-        filter_row.addWidget(QLabel("מעבד / מכשיר:"))
-        self.bank_group_combo = QComboBox()
-        self.bank_group_combo.addItem("הצג הכל", "")
-        self.bank_group_combo.currentIndexChanged.connect(self._refresh_bank)
-        filter_row.addWidget(self.bank_group_combo, 1)
-        b_refresh = QPushButton("🔄 רענון")
-        b_refresh.clicked.connect(self._refresh_bank)
-        filter_row.addWidget(b_refresh)
-        v.addLayout(filter_row)
-
+        # ---- כרטיס הקבצים
+        refresh = ui_kit.icon_button("refresh", "רענון")
+        refresh.clicked.connect(self._bank_refresh_clicked)
+        card = ui_kit.Card("כל הקבצים", "", "file", refresh)
+        card.expand_body()
+        self._bank_card = card
         self.bank_table = QTableWidget(0, 5)
         self.bank_table.setHorizontalHeaderLabels(
             ["שם קובץ", "מעבד", "מכשיר", "מקור", "תאריך"])
         self.bank_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.bank_table.verticalHeader().setVisible(False)
         self.bank_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.bank_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.bank_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        v.addWidget(self.bank_table, 1)
-
-        # מפריד עדין מעל שורת התחתית — כמו מד ההתקדמות בתחתית החלון
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
-        v.addWidget(sep)
-
-        # שורת תחתית (בגובה שורת סטטוס המכשיר): הכפתורים בצד אחד,
-        # סיכום הבנק בצד השני — בלי שורה שלמה משלהם
-        bottom = QHBoxLayout()
-        bottom.setContentsMargins(0, 2, 0, 0)
-        for text, slot in (("📥 ייבא קובץ Scatter", self._bank_import),
-                           ("👁️ הצג תוכן", self._bank_preview),
-                           ("📁 העבר לקבוצה", self._bank_move),
-                           ("✏️ שנה שם", self._bank_rename),
-                           ("🗑️ מחק", self._bank_delete),
-                           ("📂 פתח תיקיית הבנק", self._bank_open_folder)):
+        self.bank_table.setMinimumHeight(220)
+        self.bank_table.itemSelectionChanged.connect(self._bank_selection_changed)
+        card.add(self.bank_table, 1)
+        # "הצג תוכן" — בתוך הכרטיס, במקום חלון נפרד (כמו בדמו)
+        self._bank_preview_box = QPlainTextEdit()
+        self._bank_preview_box.setObjectName("preview")
+        self._bank_preview_box.setReadOnly(True)
+        self._bank_preview_box.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+        self._bank_preview_box.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self._bank_preview_box.setMaximumHeight(220)
+        self._bank_preview_box.hide()
+        card.add(self._bank_preview_box)
+        self.bank_summary = QLabel()
+        self.bank_summary.setObjectName("hint")
+        self.bank_summary.setWordWrap(True)
+        card.add(self.bank_summary)
+        b_imp = QPushButton("ייבא קובץ Scatter…")
+        b_imp.setObjectName("btnPrimary")
+        b_imp.clicked.connect(self._bank_import)
+        card.add_action(b_imp)
+        for text, slot in (("הצג תוכן", self._bank_preview),
+                           ("העבר לקבוצה", self._bank_move),
+                           ("שנה שם", self._bank_rename)):
             b = QPushButton(text)
             b.clicked.connect(slot)
-            bottom.addWidget(b)
-        bottom.addStretch(1)   # ב-RTL — הסיכום יידחף לצד השני של הכפתורים
-        self.bank_summary = QLabel()
-        self.bank_summary.setWordWrap(True)
-        bottom.addWidget(self.bank_summary, 1)
-        v.addLayout(bottom)
+            card.add_action(b)
+        card.add_action(QWidget(), 1)
+        b_del = QPushButton("מחק")
+        b_del.setObjectName("btnDangerOutline")
+        b_del.clicked.connect(self._bank_delete)
+        card.add_action(b_del)
+        body.addWidget(card, 1)
+        v.addLayout(body, 1)
         self._refresh_bank()
         return w
 
+    def _bank_group_of(self, e) -> str:
+        """הקבוצה של קובץ — לפי מעבד (או תיקיית הקבוצה) או לפי מכשיר."""
+        if self._bank_by == "cpu":
+            return e.cpu or e.group          # ישן/ידני: התיקייה היא בד"כ שם המעבד
+        return e.device or "ללא שם מכשיר"
+
+    def _bank_group_button(self, name, count: int) -> QPushButton:
+        """שורה ברשימת הקבוצות (כמו בדמו): שם הקבוצה, ומספר הקבצים בה."""
+        b = QPushButton()
+        b.setObjectName("bankGroup")
+        b.setCheckable(True)
+        selected = name == self._bank_filter
+        b.setChecked(selected)
+        b.setFixedHeight(44)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        h = QHBoxLayout(b)
+        h.setContentsMargins(14, 0, 14, 0)
+        h.setSpacing(10)
+        lbl = QLabel(name or "הכל")
+        lbl.setObjectName("bankGroupName")
+        lbl.setProperty("selected", "true" if selected else "false")
+        cnt = QLabel(str(count))
+        cnt.setObjectName("countBadge")
+        for x in (lbl, cnt):
+            x.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        h.addWidget(lbl, 1)
+        h.addWidget(cnt)
+        b.clicked.connect(lambda _=False, g=name: self._bank_select_group(g))
+        return b
+
     def _refresh_bank(self):
-        current = self.bank_group_combo.currentData()
-        entries = scatter_bank.list_entries(current or None)
-        self.bank_table.setRowCount(0)
-        self._bank_entries = entries
+        entries = scatter_bank.list_entries()
+        counts: dict = {}
         for e in entries:
+            g = self._bank_group_of(e)
+            counts[g] = counts.get(g, 0) + 1
+        if self._bank_filter not in counts:
+            self._bank_filter = None
+        lay = self._bank_groups_lay
+        while lay.count():
+            item = lay.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        for name, n in [(None, len(entries))] + sorted(counts.items()):
+            lay.addWidget(self._bank_group_button(name, n))
+        shown = [e for e in entries
+                 if self._bank_filter is None or self._bank_group_of(e) == self._bank_filter]
+        self._bank_entries = shown
+        self.bank_table.setRowCount(0)
+        for e in shown:
             row = self.bank_table.rowCount()
             self.bank_table.insertRow(row)
             cpu = e.cpu or e.group      # ישן/ידני: התיקייה היא בד"כ שם המעבד
             dev = e.device or "—"       # רק שם מכשיר שמולא במפורש — אחרת ריק
             for col, val in enumerate([e.name, cpu, dev, e.source_label, e.modified_str]):
                 self.bank_table.setItem(row, col, QTableWidgetItem(str(val)))
-
-        self.bank_group_combo.blockSignals(True)
-        keep = self.bank_group_combo.currentData()
-        self.bank_group_combo.clear()
-        self.bank_group_combo.addItem("הצג הכל", "")
-        for g in scatter_bank.groups():
-            self.bank_group_combo.addItem(g, g)
-        idx = self.bank_group_combo.findData(keep)
-        if idx >= 0:
-            self.bank_group_combo.setCurrentIndex(idx)
-        self.bank_group_combo.blockSignals(False)
-
+        self._bank_card.title.setText(self._bank_filter or "כל הקבצים")
+        self._bank_preview_box.hide()
+        self._bank_selection_changed()
         st = scatter_bank.stats()
         self.bank_summary.setText(
             f"סה\"כ {st['total']} קבצים | נוצרו בתוכנה: {st['generated']} | "
             f"הוזנו ידנית: {st['manual']} | קבוצות: {st['groups']}\nמיקום: {st['root']}")
 
-    def _selected_bank_entry(self):
+    def _bank_set_grouping(self, key: str):
+        self._bank_by = key
+        self._bank_filter = None
+        self._refresh_bank()
+
+    def _bank_select_group(self, name):
+        self._bank_filter = name
+        self._refresh_bank()
+
+    def _bank_refresh_clicked(self):
+        self._refresh_bank()
+        self.toasts.show("info", "הבנק רוענן")
+
+    def _bank_selection_changed(self):
+        """שורת המשנה בכרטיס: מספר הקבצים, והקובץ שנבחר (כמו בדמו)."""
+        entries = getattr(self, "_bank_entries", [])
         row = self.bank_table.currentRow()
-        if row < 0 or row >= len(getattr(self, "_bank_entries", [])):
-            QMessageBox.warning(self, "בחירה חסרה", "בחר קובץ מהרשימה")
+        sel = entries[row].name if 0 <= row < len(entries) and self.bank_table.selectedItems() else ""
+        self._bank_card.desc.setText(f"{len(entries)} קבצים" + (f" · נבחר: {sel}" if sel else ""))
+        self._bank_card.desc.setVisible(True)
+        self._bank_preview_box.hide()
+
+    def _selected_bank_entry(self):
+        entries = getattr(self, "_bank_entries", [])
+        row = self.bank_table.currentRow()
+        if row < 0 or row >= len(entries) or not self.bank_table.selectedItems():
+            self.toasts.show("warn", "קודם בחר קובץ ברשימה")
             return None
-        return self._bank_entries[row]
+        return entries[row]
+
+    def _ask_text(self, title: str, op: str, prompt: str, value: str = "", choices=()):
+        """חלון קלט קצר (כמו בדמו): כותרת · שם הקובץ · שדה (עם הצעות) · שמור / ביטול.
+        מחזיר את הטקסט, או None כשמבטלים / משאירים ריק."""
+        dlg = ui_kit.Modal(self, title, f"<b>{html.escape(op)}</b>" if op else "")
+        dlg.add_text(html.escape(prompt), "hint")
+        if choices:
+            field = QComboBox()
+            field.setEditable(True)
+            field.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+            field.addItems(list(choices))
+            field.setCurrentText(value)
+            get = field.currentText
+        else:
+            field = QLineEdit(value)
+            get = field.text
+        dlg.add(field)
+        dlg.focus_on(field)
+        dlg.add_button("שמור", "ok", "btnPrimary", default=True)
+        dlg.add_button("ביטול", "")
+        if dlg.run() != "ok":
+            return None
+        return get().strip() or None
 
     def _bank_import(self):
         path, _ = QFileDialog.getOpenFileName(
             self, "בחר קובץ Scatter", "", "Scatter files (*.txt *.scatter *.cfg);;All files (*)")
         if not path:
             return
-        group, ok = QInputDialog.getText(self, "קבוצת יעד",
-                                         "שם מעבד או מכשיר (למשל MT6765 או Redmi_9A):")
-        if not ok or not group.strip():
+        group = self._ask_text("קבוצת יעד", Path(path).name,
+                               "שם מעבד או מכשיר (למשל MT6765 או Redmi_9A):", "",
+                               scatter_bank.groups())
+        if not group:
             return
         try:
-            entry = scatter_bank.import_file(Path(path), group.strip())
+            entry = scatter_bank.import_file(Path(path), group)
         except (OSError, FileNotFoundError) as e:
-            QMessageBox.critical(self, "שגיאה", f"הייבוא נכשל: {e}")
+            self._say("error", f"הייבוא נכשל: {e}")
+            self.toasts.show("err", f"הייבוא נכשל: {e}")
             return
         self._say("success", f"נוסף לבנק: {entry.group}/{entry.name}")
+        self.toasts.show("ok", f"הקובץ יובא לבנק: {entry.group}/{entry.name}")
         self._refresh_bank()
 
     def _bank_preview(self):
+        """"הצג תוכן" — בתוך הכרטיס (במקום חלון נפרד)."""
         entry = self._selected_bank_entry()
         if not entry:
             return
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle(f"תצוגה: {entry.name}")
-        dlg.setText(f"קבוצה: {entry.group}  |  מקור: {entry.source_label}")
-        dlg.setDetailedText(scatter_bank.read_entry_text(entry))
-        dlg.exec()
+        self._bank_preview_box.setPlainText(scatter_bank.read_entry_text(entry))
+        self._bank_preview_box.show()
 
     def _bank_move(self):
         entry = self._selected_bank_entry()
         if not entry:
             return
-        group, ok = QInputDialog.getText(self, "העברה לקבוצה", "שם מעבד או מכשיר חדש:",
-                                         text=entry.group)
-        if not ok or not group.strip():
+        group = self._ask_text("העברה לקבוצה", entry.name, "שם מעבד או מכשיר חדש:",
+                               entry.group, scatter_bank.groups())
+        if not group:
             return
         try:
-            scatter_bank.move_to_group(entry, group.strip())
+            scatter_bank.move_to_group(entry, group)
         except OSError as e:
-            QMessageBox.critical(self, "שגיאה", f"ההעברה נכשלה: {e}")
+            self._say("error", f"ההעברה נכשלה: {e}")
+            self.toasts.show("err", f"ההעברה נכשלה: {e}")
             return
-        self._say("info", f"הועבר לקבוצה: {group.strip()}")
+        self._say("info", f"הועבר לקבוצה: {group}")
+        self.toasts.show("ok", f"הקובץ הועבר ל-{group}")
         self._refresh_bank()
 
     def _bank_rename(self):
         entry = self._selected_bank_entry()
         if not entry:
             return
-        name, ok = QInputDialog.getText(self, "שינוי שם", "שם קובץ חדש:", text=entry.name)
-        if not ok or not name.strip():
+        name = self._ask_text("שינוי שם", entry.name, "שם קובץ חדש:", entry.name)
+        if not name:
             return
         try:
-            scatter_bank.rename_entry(entry, name.strip())
+            scatter_bank.rename_entry(entry, name)
         except (OSError, FileExistsError) as e:
-            QMessageBox.critical(self, "שגיאה", f"השינוי נכשל: {e}")
+            self._say("error", f"השינוי נכשל: {e}")
+            self.toasts.show("err", f"השינוי נכשל: {e}")
             return
+        self.toasts.show("ok", "השם שונה")
         self._refresh_bank()
 
     def _bank_delete(self):
         entry = self._selected_bank_entry()
         if not entry:
             return
-        if QMessageBox.question(self, "מחיקה", f"למחוק מהבנק:\n{entry.group}/{entry.name}?",
-                                _YES | _NO, _NO) != _YES:
+        dlg = ui_kit.Modal(self, "⚠ מחיקה מהבנק",
+                           f"<b>{html.escape(entry.group)}/{html.escape(entry.name)}</b>")
+        dlg.add_text("הקובץ יימחק מהבנק לצמיתות. להמשיך?", "hint")
+        dlg.add_button("מחק", "del", "btnDanger")
+        dlg.add_button("ביטול", "", default=True)
+        if dlg.run() != "del":
             return
         scatter_bank.delete_entry(entry)
         self._say("warning", f"נמחק מהבנק: {entry.name}")
+        self.toasts.show("ok", "נמחק מהבנק")
         self._refresh_bank()
 
     def _bank_open_folder(self):
@@ -2540,31 +2811,34 @@ class MainWindow(QMainWindow):
         self.btn_auto_python.setEnabled(True)
         if ok:
             self._say("success", msg.splitlines()[0])
-            QMessageBox.information(self, "✅ פייתון מוכן", msg)
+            self._toast_result("ok", msg.splitlines()[0], msg, "פייתון מוכן")
             self._detect_pyenv()
             return
         self._say("error", f"התקנת פייתון נכשלה: {msg.splitlines()[0]}")
-        dlg = QMessageBox(self)
-        dlg.setIcon(QMessageBox.Icon.Warning)
-        dlg.setWindowTitle("ההתקנה האוטומטית לא הצליחה")
-        dlg.setText(msg)
-        dlg.setInformativeText(
-            "אפשר להתקין ידנית — 4 צעדים:\n"
-            "1. לחץ 'הורדת פייתון להתקנה' והורד את 'Windows installer (64-bit)'.\n"
-            "2. פתח את הקובץ שהורד.\n"
-            "3. ⚠️ חשוב: בחלון הראשון, למטה, סמן את התיבה "
-            "'Add python.exe to PATH' — ורק אז לחץ 'Install Now'.\n"
-            "4. בסיום — חזור לכאן ולחץ שוב על 'התקן פייתון וספריות (אוטומטי)' "
-            "(הוא יתקין רק את הספריות).\n\n"
-            "או — בלי שום התקנה: 'הורדת פייתון נייד' (MTKClient Portable), "
-            "וחלץ את הקובץ ליד התוכנה.")
-        dlg.addButton("סגור", QMessageBox.ButtonRole.RejectRole)
-        b_dl = dlg.addButton("⬇️ הורדת פייתון להתקנה", QMessageBox.ButtonRole.ActionRole)
-        b_port = dlg.addButton("⬇️ הורדת פייתון נייד", QMessageBox.ButtonRole.ActionRole)
-        dlg.exec()
-        if dlg.clickedButton() is b_dl:
+        self._toast("err", f"התקנת פייתון נכשלה: {msg.splitlines()[0]}",
+                    [("מה לעשות", lambda: self._show_pyinstall_help(msg))])
+
+    def _show_pyinstall_help(self, msg: str):
+        """איך להתקין ידנית אחרי שההתקנה האוטומטית נכשלה (נפתח מ"מה לעשות")."""
+        dlg = ui_kit.Modal(self, "ההתקנה האוטומטית לא הצליחה", icon="cross", wide=True)
+        dlg.add_text(html.escape(msg).replace("\n", "<br>"), "reason")
+        dlg.add_text("אפשר להתקין ידנית — 4 צעדים:", "secTitle")
+        dlg.add(ui_kit.steps_list([html.escape(t) for t in (
+            f"לחץ 'הורדת פייתון להתקנה' והורד את '{ui_kit.ltr('Windows installer (64-bit)')}'.",
+            "פתח את הקובץ שהורד.",
+            "⚠️ חשוב: בחלון הראשון, למטה, סמן את התיבה 'Add python.exe to PATH' — "
+            "ורק אז לחץ 'Install Now'.",
+            "בסיום — חזור לכאן ולחץ שוב על 'התקן פייתון וספריות (אוטומטי)' "
+            "(הוא יתקין רק את הספריות).")]))
+        dlg.add_text("או — בלי שום התקנה: 'הורדת פייתון נייד' (MTKClient Portable), "
+                     "וחלץ את הקובץ ליד התוכנה.", "hint")
+        dlg.add_button("הורדת פייתון להתקנה", "dl", "btnPrimary", default=True)
+        dlg.add_button("הורדת פייתון נייד", "port", "btnSoft")
+        dlg.add_button("סגור", "")
+        key = dlg.run()
+        if key == "dl":
             self._open_python_download()
-        elif dlg.clickedButton() is b_port:
+        elif key == "port":
             QDesktopServices.openUrl(QUrl(_MTK_PORTABLE_URL))
 
     def _style_install_python(self, alert: bool):
@@ -2659,6 +2933,7 @@ class MainWindow(QMainWindow):
         """נקה תצוגה — מנקה את הלוג המוצג (הקובץ בדיסק לא נמחק)."""
         self._log_entries.clear()
         self.log_view.clear()
+        self._toast("info", "תצוגת הלוג נוקתה")
 
     # ------------------------------------------------------------ bus / events
     def _connect_bus(self):
@@ -2698,6 +2973,7 @@ class MainWindow(QMainWindow):
         bus.driver_fix_result.connect(self._on_driver_fix_result)
         bus.pyinstall_done.connect(self._on_pyinstall_done)
         bus.root_pipeline_step.connect(self._on_root_pipeline_step)
+        bus.toast.connect(lambda p: self._toast(*p))   # הודעות בצד מ-thread רקע
         # מקורות רקע → אותות Qt (thread-safe)
         log.subscribe(lambda level, msg: bus.log_line.emit(level, msg))
         job_manager.on_progress = lambda pct, s: bus.progress.emit(float(pct), s)
@@ -2839,6 +3115,27 @@ class MainWindow(QMainWindow):
             self._show_failure(name)
         if getattr(self, "_clear_timer", None):
             self._clear_timer.start()   # ינוקה אחרי 30 שניות
+
+    def _toast(self, kind: str, text: str, actions=()):
+        """הודעה בצד (אם החלון כבר נבנה)."""
+        host = getattr(self, "toasts", None)
+        if host is not None:
+            host.show(kind, text, actions)
+
+    def _toast_result(self, kind: str, text: str, details: str = "", title: str = ""):
+        """הודעה בצד על תוצאה; אם יש פירוט ארוך יותר — כפתור "פרטים" שפותח אותו."""
+        actions = []
+        if details and details.strip() != text.strip():
+            actions.append(("פרטים", lambda: self._show_details(title or text, details, kind)))
+        self._toast(kind, text, actions)
+
+    def _show_details(self, title: str, details: str, kind: str = "info"):
+        """הפירוט המלא של תוצאה (נפתח מהכפתור "פרטים" בהודעה)."""
+        icon = {"ok": "check", "err": "cross", "warn": "alert"}.get(kind, "")
+        dlg = ui_kit.Modal(self, title, icon=icon)
+        dlg.add_text(html.escape(details).replace("\n", "<br>"))
+        dlg.add_button("סגור", "", "btnPrimary", default=True)
+        dlg.run()
 
     def _show_success(self, name: str):
         """הצלחה — הודעה ירוקה בצד (כמו בדמו). אם יש הסבר "שימושים" — כפתור "פרטים"."""
@@ -3090,17 +3387,22 @@ class MainWindow(QMainWindow):
                                "auto": "ADB ואז BROM/Preloader"}.get(tool, tool)
                     if mode == "adb":
                         self._say("success", f"{tag} מכשיר זוהה ב-ADB — {info.model or info.cpu}")
+                        bus.toast.emit(("ok", f"מכשיר התחבר ב-ADB — {info.model or info.cpu}"))
                     elif mode == "brom":
                         self._say("warning",
                                   f"{tag} נמצא פורט BROM/Preloader"
                                   + (" (לא נמצא מכשיר ב-ADB)" if tool == "auto" else "")
                                   + ". קרא GPT כדי לזהות את המעבד (mtkclient).")
                         bus.brom_detected.emit()   # הצעת GPT ב-thread הראשי
+                        bus.toast.emit(("info", "נמצא מכשיר במצב BROM/Preloader"))
                     elif tool == "adb" and self._last_probe_mode == "adb":
                         self._say("warning", f"{tag} המכשיר לא עונה ב-ADB (נותק או נעול) — "
                                              "ממשיך לחכות לו ב-ADB בלבד.")
+                        bus.toast.emit(("warn", "המכשיר לא עונה ב-ADB (נותק או נעול)"))
                     else:
                         self._say("info", f"{tag} אין מכשיר מחובר (נבדק: {checked})")
+                        if self._last_probe_mode in ("adb", "brom", "fastboot"):
+                            bus.toast.emit(("info", "המכשיר התנתק"))
                     self._last_probe_mode = mode
                     # אחרי זיהוי ראשון — ננעלים על הערוץ שעובד (עד שהמשתמש יחליף)
                     if tool == "auto" and mode in ("adb", "brom"):
@@ -3157,8 +3459,9 @@ class MainWindow(QMainWindow):
         dlg.setStyleSheet(
             f"QDialog {{ background-color: {bg}; border: 2px solid {accent}; }}"
             f"QGroupBox {{ background-color: {card}; border: 1px solid {accent};"
-            f" border-radius: 14px; color: {fg}; }}"
-            f"QGroupBox::title {{ color: {accent}; }}"
+            f" border-radius: 14px; color: {fg}; font-size: 12pt; font-weight: 700; }}"
+            # כותרת האפשרות — לבנה, גדולה ומודגשת (כמו כותרות הכרטיסים); הכחולה הקטנה לא נקראה
+            f"QGroupBox::title {{ color: {fg}; }}"
             f"QLabel {{ color: {fg}; font-weight: normal; font-size: 10.5pt; }}")
         v = QVBoxLayout(dlg)
         intro = QLabel(
@@ -3168,14 +3471,7 @@ class MainWindow(QMainWindow):
             f"background-color: {c['accent_soft']}; color: {fg}; font-size: 14pt;"
             f" font-weight: bold; padding: 14px; border: 1px solid {accent};"
             f" border-radius: 12px;")
-        # "מסגרת" עדינה לאותיות — הילה כחולה סביב הטקסט
-        from PySide6.QtWidgets import QGraphicsDropShadowEffect
-        from PySide6.QtGui import QColor as _QColor
-        _glow = QGraphicsDropShadowEffect(intro)
-        _glow.setColor(_QColor(accent))
-        _glow.setBlurRadius(6)
-        _glow.setOffset(0, 0)
-        intro.setGraphicsEffect(_glow)
+        # בלי "הילה" סביב האותיות — במסך בגודל רגיל היא טשטשה את קצוות האותיות
         v.addWidget(intro)
         grid = QGridLayout()
         grid.setSpacing(8)
@@ -3190,7 +3486,7 @@ class MainWindow(QMainWindow):
             b_pick = QPushButton("בחר")
             b_pick.setObjectName("btnPrimary")   # כפתור ראשי — צבעי הערכה
             b_pick.clicked.connect(lambda _=False, t=tool: self._select_tool(t, dlg))
-            b_help = QPushButton("❓ הוראות")
+            b_help = QPushButton("הוראות")
             b_help.clicked.connect(lambda _=False, t=tool: self._show_mode_instructions(t))
             row.addWidget(b_pick)
             row.addWidget(b_help)
@@ -3199,14 +3495,14 @@ class MainWindow(QMainWindow):
             return gb
 
         order = [
-            add_option("📱 ADB — המכשיר דלוק",
+            add_option("ADB — המכשיר דלוק",
                        "כשהמכשיר דלוק ותקין — הדרך הפשוטה: מציג דגם, מעבד ואחוז סוללה, "
                        "ומאפשר ניהול אפליקציות (התקנת כל סגנונות החבילה/הסרה), סייר קבצים "
                        "מלא, בדיקת בוטלאודר והרשאות ניהול.", "adb"),
-            add_option("⚡ Fastboot — הבוטלאודר",
+            add_option("Fastboot — הבוטלאודר",
                        "צריבה ומחיקה של מחיצות (קובצי \u200e.img) ופעולות בוטלאודר.\n"
                        "דורש: המכשיר במצב Fastboot ודרייבר מתאים.", "fastboot"),
-            add_option("🧬 mtkclient — BROM/Preloader",
+            add_option("mtkclient — BROM/Preloader",
                        "גם כשהמכשיר תקול או חסום- יש לו גישה למעבד, מועיל לשאיבת "
                        "וצריבת מחיצות, פתיחת הבוטלאודר ועוד , היתרון הגדול לא מצריך "
                        "מצב מפתחים או סקטאר.", "brom"),
@@ -3217,7 +3513,7 @@ class MainWindow(QMainWindow):
         v.addLayout(grid)
         row = QHBoxLayout()
         row.addStretch(1)
-        b_unsure = QPushButton("🤷 אני לא יודע עדיין")
+        b_unsure = QPushButton("אני לא יודע עדיין")
         b_unsure.clicked.connect(lambda: self._unsure_tool_flow(dlg))
         row.addWidget(b_unsure)
         v.addLayout(row)
@@ -3291,7 +3587,7 @@ class MainWindow(QMainWindow):
                 "מצב Fastboot רץ על הבוטלאודר — שימושי לצריבת קובצי \u200e.img לפי שם מחיצה "
                 "(boot, recovery, vbmeta וכדומה), מחיקת מחיצות ופעולות בוטלאודר.\n\n"
                 "כניסה למצב:\n"
-                "• מהמכשיר הדלוק (עם ADB): לחץ בלשונית 📱 ADB על 'עבור למצב Fastboot' — "
+                "• מהמכשיר הדלוק (עם ADB): לחץ בלשונית ADB על 'עבור למצב Fastboot' — "
                 "התוכנה מריצה 'adb reboot bootloader' וממתינה לזיהוי המכשיר ב-Fastboot.\n"
                 "• ידנית: כבה את המכשיר, ואז החזק כפתור הפעלה + ווליום מטה (או שני "
                 "הווליומים — תלוי דגם) עד שמופיע לוגו Fastboot.\n\n"
@@ -3919,10 +4215,7 @@ class MainWindow(QMainWindow):
             self._clear_timer.start()
         first = text.splitlines()[0] if text else ""
         self.adb_pkgs_view.setPlainText(first)
-        if ok:
-            QMessageBox.information(self, f"✅ {title}", text)
-        else:
-            QMessageBox.warning(self, f"❌ {title}", text)
+        self._toast_result("ok" if ok else "err", f"{title}: {first}" if first else title, text, title)
 
     def _apps_context_menu(self, pos):
         from PySide6.QtWidgets import QMenu
@@ -3931,17 +4224,18 @@ class MainWindow(QMainWindow):
             return
         app = getattr(self, "_apps_by_pkg", {}).get(pkg)
         m = QMenu(self)
-        a_copy = m.addAction("📋 העתק שם חבילה")
-        a_field = m.addAction("➡️ העבר לשדה ההסרה")
-        a_info = m.addAction("ℹ️ מידע על האפליקציה")
+        a_copy = m.addAction("העתק שם חבילה")
+        a_field = m.addAction("העבר לשדה ההסרה")
+        a_info = m.addAction("מידע על האפליקציה")
         a_restore = None
         if app is not None and app.removed_for_user:
             m.addSeparator()
-            a_restore = m.addAction("♻️ שחזר אפליקציה (הוסרה מהמשתמש)")
+            a_restore = m.addAction("שחזר אפליקציה (הוסרה מהמשתמש)")
         chosen = m.exec(self.adb_apps_table.viewport().mapToGlobal(pos))
         if chosen == a_copy:
             QApplication.clipboard().setText(pkg)
             self.status_label.setText(f"הועתק: {pkg}")
+            self._toast("ok", f"הועתק: {pkg}")
         elif chosen == a_field:
             self.adb_pkg_edit.setText(pkg)
         elif chosen == a_info:
@@ -4113,7 +4407,7 @@ class MainWindow(QMainWindow):
         path, entries, err = payload
         if err:
             self._say("error", f"סייר קבצים: {err}")
-            QMessageBox.warning(self, "שגיאת גישה", err)
+            self._toast("err", f"שגיאת גישה: {err}")
             return
         self._fs_entries = entries
         self._fs_cwd = path
@@ -4176,12 +4470,10 @@ class MainWindow(QMainWindow):
     def _on_fs_op(self, payload):
         ok, title, text, refresh = payload
         self._say("success" if ok else "error", f"{title}: {text}")
-        if ok:
-            QMessageBox.information(self, f"✅ {title}", text)
-            if refresh:
-                self._fs_refresh()
-        else:
-            QMessageBox.warning(self, f"❌ {title}", text)
+        first = text.splitlines()[0] if text else ""
+        self._toast_result("ok" if ok else "err", f"{title}: {first}" if first else title, text, title)
+        if ok and refresh:
+            self._fs_refresh()
 
     def _fs_download(self):
         e = self._fs_selected()
@@ -4289,12 +4581,12 @@ class MainWindow(QMainWindow):
     def _on_fs_edit_ready(self, payload):
         ok, remote, local, msg = payload
         if not ok:
-            QMessageBox.warning(self, "עריכה", f"המשיכה נכשלה:\n{msg}")
+            self._toast("err", f"עריכה — המשיכה נכשלה: {msg}")
             return
         try:
             text = Path(local).read_text(encoding="utf-8", errors="replace")
         except OSError as e:
-            QMessageBox.warning(self, "עריכה", f"לא ניתן לקרוא את הקובץ: {e}")
+            self._toast("err", f"עריכה — לא ניתן לקרוא את הקובץ: {e}")
             return
         dlg = _TextEditDialog(self, Path(local).name, text)
         if dlg.exec() != QDialog.DialogCode.Accepted:
@@ -4302,7 +4594,7 @@ class MainWindow(QMainWindow):
         try:
             Path(local).write_text(dlg.text(), encoding="utf-8")
         except OSError as e:
-            QMessageBox.warning(self, "עריכה", f"שמירה מקומית נכשלה: {e}")
+            self._toast("err", f"עריכה — שמירה מקומית נכשלה: {e}")
             return
         adb = self._fs_adb()
         if not adb:
@@ -4371,12 +4663,14 @@ class MainWindow(QMainWindow):
         self._update_idle_header()
         if tool == "none":
             self._say("info", "ערוץ תקשורת: לא נבחר — אין חיפוש מכשיר עד שתבחר ערוץ.")
+            self._toast("info", "ערוץ תקשורת: לא נבחר")
             bus.device_info.emit(devinfo.DeviceInfo(mode="none"))   # איפוס הכותרת מיד
             return
         names = {"auto": "אוטומטי", "adb": "ADB", "fastboot": "Fastboot",
                  "brom": "mtkclient\u200f (BROM)\u200f"}
         self._say("info", f"ערוץ תקשורת: {names.get(tool, tool)} — הזיהוי האוטומטי "
                           "ישתמש רק בו ולא ינסה דרכים אחרות.")
+        self._toast("info", f"ערוץ תקשורת: {names.get(tool, tool)}")
         self._probe_device()
 
     def _set_active_tool(self, tool: str):
@@ -4387,6 +4681,7 @@ class MainWindow(QMainWindow):
         if tool != self._active_tool:
             self._say("info", f"🔎 ערוץ תקשורת: {self._channel_label(tool)} — "
                               "מחפש מכשיר בערוץ הזה בלבד.")
+            self._toast("info", f"ערוץ תקשורת: {self._channel_label(tool)}")
         self._active_tool = tool
         self.tool_combo.blockSignals(True)
         self.tool_combo.setCurrentIndex(i)
@@ -4725,7 +5020,7 @@ class MainWindow(QMainWindow):
                 "הפעולה תופסת אותו אוטומטית.\n\n"
                 "אם זה לא עוזר: החלף כבל/פורט USB, וודא שהדרייברים מותקנים "
                 "(לשונית mtkclient ← דרייברים — כולל דרייבר VCOM/Preloader של MediaTek).")
-            retry = dlg.addButton("🔄 נסה שוב", QMessageBox.ButtonRole.AcceptRole)
+            retry = dlg.addButton("נסה שוב", QMessageBox.ButtonRole.AcceptRole)
             dlg.addButton("סגור", QMessageBox.ButtonRole.RejectRole)
             dlg.setDefaultButton(retry)
             self._gpt_timeout_dialog = dlg
@@ -4736,7 +5031,7 @@ class MainWindow(QMainWindow):
             ours = set(dlg.buttons())
             for details_btn in dlg.findChildren(_QBtn):
                 if details_btn not in ours:
-                    details_btn.setText("🔽 הצג פרטים נוספים")
+                    details_btn.setText("הצג פרטים נוספים")
                     break
             dlg.exec()
             self._gpt_timeout_dialog = None
@@ -4830,7 +5125,9 @@ class MainWindow(QMainWindow):
         text = drivers.format_status(st)
         for line in text.splitlines():
             self._say("info" if st.ok else "warning", line.strip())
-        QMessageBox.information(self, "בדיקת דרייברים", text)
+        kind = "ok" if st.ok and not st.hint else "warn"
+        state = "הכל תקין" if kind == "ok" else ("חסר דרייבר" if not st.ok else "יש מה לתקן")
+        self._toast_result(kind, f"{st.title} — {state}", text, st.title)
 
     def _install_usbdk(self):
         # קובץ ההתקנה מגיע עם התוכנה (tools\usbdk.msi); גיבוי: התיקייה הניידת
@@ -4858,7 +5155,7 @@ class MainWindow(QMainWindow):
         self._install_driver_folder("fastboot_driver", f"דרייבר {name}")
 
     def _fix_driver_button(self) -> QPushButton:
-        b = QPushButton("🔧 תקן דרייבר למכשיר המחובר")
+        b = QPushButton("תקן דרייבר למכשיר המחובר")
         b.setToolTip("מאתר מכשיר Android/MediaTek שמחובר בלי דרייבר ומצמיד לו את הדרייבר "
                      "המתאים מהתוכנה — גם כשהמזהה שלו לא מוכר (נדרשת הרשאת מנהל)")
         b.clicked.connect(self._fix_connected_driver)
@@ -4884,7 +5181,7 @@ class MainWindow(QMainWindow):
             f"מחכה לו עד {wait_s} שניות ומתקנת ברגע שהוא מופיע.\n\n"
             "תידרש הרשאת מנהל (UAC).")
         b_now = q.addButton("תקן עכשיו", QMessageBox.ButtonRole.AcceptRole)
-        b_brom = q.addButton(f"⏳ חכה לחיבור BROM ({wait_s} שניות)",
+        b_brom = q.addButton(f"חכה לחיבור BROM ({wait_s} שניות)",
                              QMessageBox.ButtonRole.ActionRole)
         q.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
         q.setDefaultButton(b_now)
@@ -4948,8 +5245,14 @@ class MainWindow(QMainWindow):
         for l in lines:
             self._say("success" if l.startswith("✅")
                       else "info" if l.startswith("ℹ️") else "warning", l)
-        (QMessageBox.information if (ok or info) and not err else QMessageBox.warning)(
-            self, "תקן דרייבר למכשיר המחובר", "\n".join(lines))
+        if err:
+            kind, state = "err", "נכשל"
+        elif ok:
+            kind, state = "ok", "הדרייבר הותקן"
+        else:
+            kind, state = "info", (lines[0].splitlines()[0] if lines else "")
+        self._toast_result(kind, f"תקן דרייבר למכשיר המחובר — {state}", "\n".join(lines),
+                           "תקן דרייבר למכשיר המחובר")
 
     def _install_mtk_vcom(self):
         """התקנת דרייבר MediaTek VCOM/PreLoader מתוך התוכנה (tools\\mediatek_driver)."""
@@ -4991,7 +5294,7 @@ class MainWindow(QMainWindow):
             self._say("error", f"הפעלת התקנת הדרייבר נכשלה: {e}")
             return
         self._say("info", f"התקנת {title} הופעלה — אשר את חלון ההרשאה, "
-                          "ואחר כך בדוק עם כפתור 🩺 הבדיקה שליד")
+                          "ואחר כך בדוק עם כפתור הבדיקה שליד")
 
     def _open_drivers_link(self):
         QDesktopServices.openUrl(QUrl(_DRIVERS_URL))
@@ -5066,7 +5369,8 @@ class MainWindow(QMainWindow):
                 self._refresh_bank()
             except OSError as e:
                 self._say("warning", f"שמירה לבנק נכשלה: {e}")
-        QMessageBox.information(self, "הושלם", msg)
+        text = f"Scatter נוצר: {path.name}" + (" — נמצאו בעיות תקינות" if problems else "")
+        self._toast_result("warn" if problems else "ok", text, msg, "Scatter נוצר")
 
     # ------------------------------------------------------------ שאיבה
     def _read_checked(self):
@@ -5361,8 +5665,10 @@ class MainWindow(QMainWindow):
                     # כל השורות — גם כשהתצוגה מסוננת כרגע (אזהרות / שגיאות)
                     f.write("\n".join(plain for _lvl, _html, plain in self._log_entries))
                 self._say("success", f"לוג יוצא אל {path}")
+                self._toast("ok", f"הלוג יוצא אל {Path(path).name}")
             except OSError as e:
-                QMessageBox.critical(self, "שגיאה", f"כתיבת לוג נכשלה: {e}")
+                self._say("error", f"כתיבת לוג נכשלה: {e}")
+                self._toast("err", f"כתיבת לוג נכשלה: {e}")
 
     def closeEvent(self, event):
         if job_manager.busy:

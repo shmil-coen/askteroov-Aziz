@@ -49,8 +49,6 @@ from PySide6.QtWidgets import (
     QToolBar,
     QVBoxLayout,
     QWidget,
-    QWizard,
-    QWizardPage,
 )
 
 from ..core import config, scatter_bank
@@ -378,160 +376,216 @@ class _MainTabBar(QTabBar):
 
 # ---------------------------------------------------------------------- אשף הגדרות רוטינג אוטומטי
 #
-# יותר מדי אפשרויות לדיאלוג אחד — פוצל לשלבים (QWizard): כל מסך שואל דבר
-# אחד, עם הסבר קצר, וברירת מחדל בטוחה. סיכום מלא בסוף לפני שמתחילים בפועל.
+# יותר מדי אפשרויות לדיאלוג אחד — פוצל לשלבים: כל מסך שואל דבר אחד, עם הסבר קצר,
+# וברירת מחדל בטוחה. סיכום מלא בסוף לפני שמתחילים בפועל. בעיצוב החלונות החדשים
+# (ui_kit.Modal): כרטיס באמצע על רקע מוחשך, "שלב X מתוך Y" בכותרת, ו"הקודם / הבא".
 
 
-class _MagiskVersionPage(QWizardPage):
-    def __init__(self, apks, parent=None):
-        super().__init__(parent)
-        self.setTitle("שלב 1 — גרסת Magisk")
-        self.setSubTitle("איזו גרסת Magisk תשמש לפאץ' ה-boot/init_boot?")
-        v = QVBoxLayout(self)
+class _WizPage(QWidget):
+    """מסך אחד באשף. title / subtitle מוצגים בכותרת החלון; wizard() — האשף שמכיל אותו."""
+
+    title = ""
+    subtitle = ""
+
+    def __init__(self):
+        super().__init__()
+        self._wiz = None
+        self.lay = QVBoxLayout(self)
+        self.lay.setContentsMargins(0, 0, 0, 0)
+        self.lay.setSpacing(12)
+
+    def wizard(self):
+        return self._wiz
+
+    def initializePage(self):   # נקרא בכל כניסה למסך
+        pass
+
+    def _note(self, text: str, name: str = "hint") -> QLabel:
+        lbl = QLabel(ui_kit.rtl(text))
+        lbl.setObjectName(name)
+        lbl.setWordWrap(True)
+        self.lay.addWidget(lbl)
+        return lbl
+
+
+class _MagiskVersionPage(_WizPage):
+    title = "גרסת Magisk"
+    subtitle = "איזו גרסת Magisk תשמש לפאץ' ה-boot/init_boot?"
+
+    def __init__(self, apks):
+        super().__init__()
         self.combo = QComboBox()
         for p in apks:
             self.combo.addItem(p.name, p)
-        v.addWidget(self.combo)
-        note = QLabel("ברירת מחדל מומלצת: הגרסה העדכנית ביותר (הראשונה ברשימה). גרסה "
-                     "ישנה יותר משמשת רק אם יש סיבה ספציפית להעדיף אותה על פני העדכנית.")
-        note.setWordWrap(True)
-        v.addWidget(note)
-        v.addStretch(1)
+        self.lay.addWidget(self.combo)
+        self._note("ברירת מחדל מומלצת: הגרסה העדכנית ביותר (הראשונה ברשימה). גרסה "
+                   "ישנה יותר משמשת רק אם יש סיבה ספציפית להעדיף אותה על פני העדכנית.")
+        self.lay.addStretch(1)
 
 
-class _AbiPage(QWizardPage):
-    def __init__(self, guess, cpu_hint: str = "", parent=None):
-        super().__init__(parent)
+class _AbiPage(_WizPage):
+    title = "ארכיטקטורת מעבד (ABI)"
+    subtitle = "צריך לדעת אם המכשיר 64-bit או 32-bit כדי לבחור את הבינארי הנכון."
+
+    def __init__(self, guess, cpu_hint: str = ""):
+        super().__init__()
         self._cpu_hint = cpu_hint
-        self.setTitle("שלב 2 — ארכיטקטורת מעבד (ABI)")
-        self.setSubTitle("צריך לדעת אם המכשיר 64-bit או 32-bit כדי לבחור את הבינארי הנכון.")
-        v = QVBoxLayout(self)
-
         self.combo = QComboBox()
         self.combo.addItem("64-bit (ARM64) — רוב המכשירים מ-2017 ואילך", "arm64-v8a")
         self.combo.addItem("32-bit בלבד (שבבים ישנים: MT6580/MT6570/MT6572/...)", "armeabi-v7a")
         self.combo.setCurrentIndex(0 if guess.is64bit_guess else 1)
-        v.addWidget(self.combo)
+        self.lay.addWidget(self.combo)
 
-        self.guess_label = QLabel(f"הצעה לפי השבב שזוהה: {guess.reason}" +
-                                  ("" if guess.confident else " — לא ודאי, מומלץ לבדוק."))
-        self.guess_label.setWordWrap(True)
-        v.addWidget(self.guess_label)
+        self.guess_label = self._note(
+            f"הצעה לפי השבב שזוהה: {guess.reason}" +
+            ("" if guess.confident else " — לא ודאי, מומלץ לבדוק."))
 
+        row = QHBoxLayout()
         b_adb = QPushButton("🔍 בדוק אוטומטית (אם הטלפון דלוק ומחובר ב-ADB)")
+        b_adb.setObjectName("btnSoft")
         b_adb.clicked.connect(self._check_via_adb)
-        v.addWidget(b_adb)
+        row.addWidget(b_adb)
+        row.addStretch(1)
+        self.lay.addLayout(row)
 
-        self.status_label = QLabel("")
-        self.status_label.setWordWrap(True)
-        v.addWidget(self.status_label)
-
-        how = QLabel(
+        self.status_label = self._note("", "modalText")
+        self._note(
             "איך לדעת בעצמך: אם הטלפון דלוק — הגדרות ← אודות הטלפון ← מידע תוכנה, או "
             "פשוט לחפש בגוגל את שם/דגם הטלפון עם \"64 bit or 32 bit\". ככלל אצבע: שבבי "
             "MediaTek ישנים מאוד (2013–2016, לרוב MT65xx כמו MT6580/MT6572) הם 32-bit "
             "בלבד; כל שבב מ-2017 ואילך (Helio, Dimensity, וכל MT67xx/68xx/69xx) הוא 64-bit.")
-        how.setWordWrap(True)
-        v.addWidget(how)
-        v.addStretch(1)
+        self.lay.addStretch(1)
 
     def _check_via_adb(self):
         exe = config.find_adb_exe()
         if exe is None:
-            self.status_label.setText("⚠️ adb.exe לא נמצא בתוך התוכנה.")
+            self.status_label.setText(ui_kit.rtl("⚠️ adb.exe לא נמצא בתוך התוכנה."))
             return
         abi = devinfo.read_adb_abi(str(exe)).strip().lower()
         if not abi:
-            self.status_label.setText(
+            self.status_label.setText(ui_kit.rtl(
                 "⚠️ לא נמצא מכשיר ב-ADB. ודא שהטלפון דלוק, ניפוי USB מופעל, "
-                "ושאישרת את חלון ההרשאה על המסך.")
+                "ושאישרת את חלון ההרשאה על המסך."))
             return
         if abi in ("arm64-v8a", "x86_64"):
             self.combo.setCurrentIndex(0)
-            self.status_label.setText(f"✅ זוהה בהצלחה דרך ADB: {abi} (64-bit)")
+            self.status_label.setText(ui_kit.rtl(f"✅ זוהה בהצלחה דרך ADB: {abi} (64-bit)"))
         elif abi in ("armeabi-v7a", "armeabi", "x86"):
             self.combo.setCurrentIndex(1)
-            self.status_label.setText(f"✅ זוהה בהצלחה דרך ADB: {abi} (32-bit)")
+            self.status_label.setText(ui_kit.rtl(f"✅ זוהה בהצלחה דרך ADB: {abi} (32-bit)"))
         else:
-            self.status_label.setText(f"⚠️ התקבל ערך לא מוכר: '{abi}' — נא לבחור ידנית.")
+            self.status_label.setText(
+                ui_kit.rtl(f"⚠️ התקבל ערך לא מוכר: '{abi}' — נא לבחור ידנית."))
 
 
-class _AdvancedPage(QWizardPage):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setTitle("שלב 3 — אפשרויות מתקדמות")
-        self.setSubTitle("ברירת המחדל (הכל לא מסומן) מתאימה כמעט תמיד.")
-        v = QVBoxLayout(self)
+class _AdvancedPage(_WizPage):
+    title = "אפשרויות מתקדמות"
+    subtitle = "ברירת המחדל (הכל לא מסומן) מתאימה כמעט תמיד."
+
+    def __init__(self):
+        super().__init__()
         self.keep_verity = QCheckBox("שמור dm-verity (KEEPVERITY)")
         self.keep_fe = QCheckBox("שמור הצפנה כפויה (KEEPFORCEENCRYPT)")
         self.legacy_sar = QCheckBox("מכשיר Legacy SAR (רק אם הפאץ' הרגיל לא עולה)")
         for cb in (self.keep_verity, self.keep_fe, self.legacy_sar):
-            v.addWidget(cb)
-        v.addStretch(1)
+            self.lay.addWidget(cb)
+        self.lay.addStretch(1)
 
 
-class _UnlockPage(QWizardPage):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setTitle("שלב 4 — Unlock (seccfg)")
-        self.setSubTitle("אופציונלי — רק אם BROM לא יצליח לכתוב בלי זה.")
-        v = QVBoxLayout(self)
-        warn = QLabel("⚠️ פתיחת בוטלואדר (Unlock) מוחקת את כל נתוני המשתמש במכשיר!")
-        warn.setWordWrap(True)
-        v.addWidget(warn)
+class _UnlockPage(_WizPage):
+    title = "Unlock (seccfg)"
+    subtitle = "אופציונלי — רק אם BROM לא יצליח לכתוב בלי זה."
+
+    def __init__(self):
+        super().__init__()
+        warn = self._note("<b>⚠️ פתיחת בוטלואדר (Unlock) מוחקת את כל נתוני המשתמש במכשיר!</b>",
+                          "noticeDanger")
+        warn.setTextFormat(Qt.TextFormat.RichText)
         self.unlock_cb = QCheckBox("גם לבצע Unlock (seccfg) לפני הכתיבה, אם צריך")
-        v.addWidget(self.unlock_cb)
-        v.addStretch(1)
+        self.lay.addWidget(self.unlock_cb)
+        self.lay.addStretch(1)
 
 
-class _SummaryPage(QWizardPage):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setTitle("סיכום — לפני התחלה")
-        self.setSubTitle("בדוק את הבחירות ולחץ 'סיום' כדי להתחיל בשלב 1 (ניתוח, לא מסוכן).")
-        v = QVBoxLayout(self)
-        self.label = QLabel()
-        self.label.setWordWrap(True)
-        v.addWidget(self.label)
-        v.addStretch(1)
+class _SummaryPage(_WizPage):
+    title = "סיכום — לפני התחלה"
+    subtitle = "בדוק את הבחירות ולחץ 'סיום' כדי להתחיל בשלב 1 (ניתוח, לא מסוכן)."
+
+    def __init__(self):
+        super().__init__()
+        self.kv = ui_kit.KeyValueList(170)
+        self.lay.addWidget(self.kv)
+        self.lay.addStretch(1)
 
     def initializePage(self):
         wiz = self.wizard()
-        lines = [
-            f"גרסת Magisk: {wiz.magisk_page.combo.currentText()}",
-            f"ארכיטקטורת מעבד: {wiz.abi_page.combo.currentText()}",
-            f"שמור dm-verity: {'כן' if wiz.adv_page.keep_verity.isChecked() else 'לא'}",
-            f"שמור הצפנה כפויה: {'כן' if wiz.adv_page.keep_fe.isChecked() else 'לא'}",
-            f"מכשיר Legacy SAR: {'כן' if wiz.adv_page.legacy_sar.isChecked() else 'לא'}",
+        yn = lambda cb: "כן" if cb.isChecked() else "לא"   # noqa: E731
+        rows = [
+            ("גרסת Magisk", wiz.magisk_page.combo.currentText()),
+            ("ארכיטקטורת מעבד", wiz.abi_page.combo.currentText()),
+            ("שמור dm-verity", yn(wiz.adv_page.keep_verity)),
+            ("שמור הצפנה כפויה", yn(wiz.adv_page.keep_fe)),
+            ("מכשיר Legacy SAR", yn(wiz.adv_page.legacy_sar)),
         ]
         if wiz.unlock_page is not None:
-            lines.append(f"גם Unlock (seccfg): "
-                        f"{'כן — מוחק נתונים!' if wiz.unlock_page.unlock_cb.isChecked() else 'לא'}")
-        self.label.setText("\n".join(lines))
+            rows.append(("גם Unlock (seccfg)",
+                         "כן — מוחק נתונים!" if wiz.unlock_page.unlock_cb.isChecked() else "לא"))
+        self.kv.set_rows(rows)
 
 
-class _DevRootWizard(QWizard):
+class _DevRootWizard(ui_kit.Modal):
+    """אשף ההגדרות — run() מחזיר "finish" כשהמשתמש אישר, אחרת "" (ביטול / סגירה)."""
+
     def __init__(self, apks, guess, cpu_hint: str, use_fastboot: bool, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("הגדרות רוטינג אוטומטי" + (" — Fastboot" if use_fastboot else " — BROM"))
-        self.setWizardStyle(QWizard.WizardStyle.ClassicStyle)
+        super().__init__(
+            parent, "הגדרות רוטינג אוטומטי" + (" — Fastboot" if use_fastboot else " — BROM"),
+            icon="info", wide=True)
         self.magisk_page = _MagiskVersionPage(apks)
         self.abi_page = _AbiPage(guess, cpu_hint)
         self.adv_page = _AdvancedPage()
         self.unlock_page = None
-        self.addPage(self.magisk_page)
-        self.addPage(self.abi_page)
-        self.addPage(self.adv_page)
+        self._pages: list[_WizPage] = [self.magisk_page, self.abi_page, self.adv_page]
         if not use_fastboot:
             self.unlock_page = _UnlockPage()
-            self.addPage(self.unlock_page)
+            self._pages.append(self.unlock_page)
         self.summary_page = _SummaryPage()
-        self.addPage(self.summary_page)
-        self.setButtonText(QWizard.WizardButton.NextButton, "הבא")
-        self.setButtonText(QWizard.WizardButton.BackButton, "הקודם")
-        self.setButtonText(QWizard.WizardButton.CancelButton, "ביטול")
-        self.setButtonText(QWizard.WizardButton.FinishButton, "🔥 סיום — התחל ניתוח")
-        self.resize(520, 380)
+        self._pages.append(self.summary_page)
+        self._subtitle = self.add_text("", "hint")
+        self._stack = QStackedWidget()
+        for p in self._pages:
+            p._wiz = self
+            self._stack.addWidget(p)
+        self.add(self._stack)
+        # מימין לשמאל: הבא / סיום · הקודם · ביטול
+        self._b_next = self.add_button("הבא", "next", "btnPrimary", default=True)
+        self._b_back = self.add_button("הקודם", "back", "btnSoft")
+        self.add_button("ביטול", "")
+        for b, slot in ((self._b_next, self._next), (self._b_back, self._back)):
+            b.clicked.disconnect()   # לא סוגרים את החלון — רק מחליפים מסך
+            b.clicked.connect(slot)
+        self._index = 0
+        self._go(0)
+
+    def _go(self, i: int):
+        self._index = i
+        page = self._pages[i]
+        page.initializePage()
+        self._stack.setCurrentIndex(i)
+        self.title_label.setText(ui_kit.rtl(
+            f"שלב {i + 1} מתוך {len(self._pages)} — {page.title}"))
+        self._subtitle.setText(ui_kit.rtl(page.subtitle))
+        last = i == len(self._pages) - 1
+        self._b_next.setText("🔥 סיום — התחל ניתוח" if last else "הבא")
+        self._b_back.setVisible(i > 0)
+
+    def _next(self):
+        if self._index >= len(self._pages) - 1:
+            self._finish("finish")
+        else:
+            self._go(self._index + 1)
+
+    def _back(self):
+        if self._index > 0:
+            self._go(self._index - 1)
 
 
 def _log_bidi(text: str) -> str:
@@ -2292,7 +2346,7 @@ class MainWindow(QMainWindow):
         return sorted(d.glob("Magisk-v*.apk"), reverse=True)
 
     def _dev_config_dialog(self, use_fastboot: bool):
-        """אשף (QWizard) בשלבים: גרסת Magisk -> ABI -> מתקדם -> [Unlock] -> סיכום.
+        """אשף (חלון Modal) בשלבים: גרסת Magisk -> ABI -> מתקדם -> [Unlock] -> סיכום.
         מחזיר dict של הבחירות, או None בביטול."""
         apks = self._dev_scan_magisk_apks()
         if not apks:
@@ -2302,7 +2356,7 @@ class MainWindow(QMainWindow):
         guessed_cpu = getattr(self.gpt, "cpu", "") if self.gpt else ""
         guess = magisk_patch.guess_abi(guessed_cpu)
         wiz = _DevRootWizard(apks, guess, guessed_cpu, use_fastboot, self)
-        if wiz.exec() != QDialog.DialogCode.Accepted:
+        if wiz.run() != "finish":
             return None
         return {
             "magisk_apk": wiz.magisk_page.combo.currentData(),

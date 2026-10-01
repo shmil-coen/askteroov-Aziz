@@ -699,6 +699,7 @@ class Modal(QDialog):
         t = QLabel(rtl(title))
         t.setObjectName("modalTitle")
         t.setWordWrap(True)
+        self.title_label = t   # לחלונות שמחליפים כותרת תוך כדי (למשל אשף בשלבים)
         head.addWidget(t, 1)
         v.addLayout(head)
         if op_html:

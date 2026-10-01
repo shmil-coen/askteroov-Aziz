@@ -361,6 +361,7 @@ QLabel#modalOp {{ font-size: 11.5pt; }}
 QLabel#modalText {{ font-size: 10.5pt; }}
 QLabel#modalIcon {{ background: {c['danger_soft']}; border-radius: 19px; }}
 QLabel#modalIcon[kind="check"] {{ background: {c['ok_soft']}; }}
+QLabel#modalIcon[kind="info"] {{ background: {c['accent_soft']}; }}
 QFrame#cmds {{ background: {c['input']}; border: 1px solid {c['border']}; border-radius: 12px; }}
 QLabel#cmdStep {{ color: {c['muted']}; font-size: 9.5pt; }}
 QLabel#cmdText {{ font-family: Consolas, 'Cascadia Mono', monospace; font-size: 10pt; }}

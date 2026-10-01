@@ -79,9 +79,21 @@ class Job:
 
     def cancel(self):
         self._cancel.set()
-        if self._current_cmd is not None:
-            self._current_cmd.stop()
         self.status = "מבוטל"
+        # עותק מקומי: ה-thread של העבודה מאפס את _current_cmd בין שלבים, ובדיקה ואז
+        # שימוש ישירות בו יכולות להיתקל ב-None באמצע (חריגה ב-thread של הממשק)
+        cmd = self._current_cmd
+        if cmd is not None:
+            # עצירת התהליך (taskkill + סגירת הצינור) יכולה לקחת שניות — לא על ה-thread
+            # של הממשק, אחרת החלון נתקע ("לא מגיב") ברגע הביטול
+            threading.Thread(target=self._stop_cmd, args=(cmd,), daemon=True).start()
+
+    @staticmethod
+    def _stop_cmd(cmd):
+        try:
+            cmd.stop()
+        except Exception as e:   # עצירה שנכשלה לא צריכה להפיל כלום
+            log.warn(f"עצירת הפקודה נכשלה: {e}")
 
 
 class JobManager:

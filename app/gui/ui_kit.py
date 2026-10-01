@@ -30,8 +30,11 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
+    QMessageBox,
     QPushButton,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -655,7 +658,7 @@ class Modal(QDialog):
     """חלון כמו בדמו: החלון הראשי מוחשך, ובאמצע כרטיס — סמל · כותרת · שורת הפעולה ·
     תוכן · כפתורים. run() מחזיר את המפתח של הכפתור שנלחץ ("" = סגירה / Esc).
 
-    icon: "cross" (כשלון) · "alert" (אזהרה) · "check" (הצלחה) · "" (בלי סמל)."""
+    icon: "cross" (כשלון) · "alert" (אזהרה) · "check" (הצלחה) · "info" (מידע) · "" (בלי סמל)."""
 
     def __init__(self, parent: QWidget, title: str, op_html: str = "", icon: str = "",
                  wide: bool = False):
@@ -690,7 +693,8 @@ class Modal(QDialog):
             ic.setProperty("kind", icon)
             ic.setFixedSize(40, 40)
             ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            ic.setPixmap(svg_pixmap(icon, c["ok"] if icon == "check" else c["danger"], 20, 2.4))
+            tint = c["ok"] if icon == "check" else c["accent"] if icon == "info" else c["danger"]
+            ic.setPixmap(svg_pixmap(icon, tint, 20, 2.4))
             head.addWidget(ic)
         t = QLabel(rtl(title))
         t.setObjectName("modalTitle")
@@ -772,6 +776,105 @@ class Modal(QDialog):
             self.reject()
             return
         super().mousePressEvent(event)
+
+
+class MessageBox:
+    """הודעות מהירות — מידע / אזהרה / שגיאה / שאלה — בחלון החדש (Modal). אותו ממשק כמו
+    QMessageBox הסטטי (information / warning / critical / question), כך שכל ההודעות
+    בתוכנה נראות אותו דבר. הכפתור שנבחר חוזר כמו ב-Qt; סגירה (Esc / לחיצה על הרקע)
+    נחשבת "לא", ואם אין כזה — "ביטול"."""
+
+    StandardButton = QMessageBox.StandardButton
+    _LABELS = (("yes", "כן", QMessageBox.StandardButton.Yes),
+               ("no", "לא", QMessageBox.StandardButton.No),
+               ("cancel", "ביטול", QMessageBox.StandardButton.Cancel))
+
+    @staticmethod
+    def html(text: str) -> str:
+        """טקסט רגיל (עם שורות חדשות) -> HTML בטוח לתצוגה."""
+        import html as _html
+        return _html.escape(text).replace("\n", "<br>")
+
+    @staticmethod
+    def add_body(dlg: "Modal", text: str, name: str = "modalText"):
+        """הטקסט בגוף החלון; ארוך מאוד — בתוך אזור גלילה, כדי שהחלון לא יחרוג מהמסך."""
+        if text.count("\n") <= 14 and len(text) <= 1400:
+            dlg.add_text(MessageBox.html(text), name)
+            return
+        inner = QWidget()
+        lay = QVBoxLayout(inner)
+        lay.setContentsMargins(0, 0, 8, 0)
+        lbl = QLabel(rtl(MessageBox.html(text)))
+        lbl.setObjectName(name)
+        lbl.setTextFormat(Qt.TextFormat.RichText)
+        lbl.setWordWrap(True)
+        lay.addWidget(lbl)
+        sa = QScrollArea()
+        sa.setWidgetResizable(True)
+        sa.setFrameShape(QFrame.Shape.NoFrame)
+        sa.setFixedHeight(320)
+        sa.setStyleSheet("QScrollArea { background: transparent; }"
+                         " QScrollArea > QWidget > QWidget { background: transparent; }")
+        sa.setWidget(inner)
+        dlg.add(sa)
+
+    @staticmethod
+    def _show(parent, title: str, text: str, icon: str, buttons, default, danger: bool):
+        dlg = Modal(parent, title, icon=icon)
+        MessageBox.add_body(dlg, text)
+        present = [(k, lbl, b) for k, lbl, b in MessageBox._LABELS if buttons & b]
+        if not present:   # כפתור "אישור" יחיד
+            dlg.add_button("אישור", "ok", "btnPrimary", default=True)
+            dlg.run()
+            return QMessageBox.StandardButton.Ok
+        if default == QMessageBox.StandardButton.NoButton:   # כמו ב-Qt: הראשון הוא ברירת המחדל
+            default = present[0][2]
+        for key, label, std in present:
+            style = ("btnDanger" if danger else "btnPrimary") if key == "yes" else ""
+            dlg.add_button(label, key, style, default=(std == default))
+        key = dlg.run()
+        for k, _label, std in present:
+            if k == key:
+                return std
+        for k, _label, std in present:
+            if k in ("no", "cancel"):
+                return std
+        return present[-1][2]
+
+    @staticmethod
+    def information(parent, title, text, buttons=QMessageBox.StandardButton.Ok,
+                    default=QMessageBox.StandardButton.NoButton):
+        return MessageBox._show(parent, title, text, "info", buttons, default, False)
+
+    @staticmethod
+    def warning(parent, title, text, buttons=QMessageBox.StandardButton.Ok,
+                default=QMessageBox.StandardButton.NoButton):
+        return MessageBox._show(parent, title, text, "alert", buttons, default, True)
+
+    @staticmethod
+    def critical(parent, title, text, buttons=QMessageBox.StandardButton.Ok,
+                 default=QMessageBox.StandardButton.NoButton):
+        return MessageBox._show(parent, title, text, "cross", buttons, default, True)
+
+    @staticmethod
+    def question(parent, title, text,
+                 buttons=QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                 default=QMessageBox.StandardButton.NoButton):
+        return MessageBox._show(parent, title, text, "", buttons, default, False)
+
+    @staticmethod
+    def get_text(parent, title: str, label: str, text: str = "") -> tuple[str, bool]:
+        """בקשת טקסט (במקום QInputDialog.getText): מחזיר (הטקסט, האם אושר)."""
+        dlg = Modal(parent, title)
+        dlg.add_text(MessageBox.html(label))
+        edit = QLineEdit(text)
+        edit.returnPressed.connect(lambda: dlg._finish("ok"))
+        dlg.add(edit)
+        dlg.add_button("אישור", "ok", "btnPrimary", default=True)
+        dlg.add_button("ביטול", "")
+        dlg.focus_on(edit)
+        key = dlg.run()
+        return edit.text(), key == "ok"
 
 
 def commands_box(rows: Iterable[tuple[str, str]]) -> QFrame:

@@ -126,6 +126,12 @@ class _ExtCommand:
         except OSError as e:
             log.error(f"הפעלה נכשלה: {e}")
             return -1, ""
+        if self._stop.is_set():   # בוטל בזמן שהתהליך עוד עלה — לא משאירים אותו רץ
+            try:
+                self.process.kill()
+            except OSError:
+                pass
+            return -2, ""
         lines = []
         for line in self.process.stdout:
             if self._stop.is_set():

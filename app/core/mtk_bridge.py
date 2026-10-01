@@ -93,6 +93,13 @@ class MtkCommand:
                 self.returncode = -1
                 return
 
+            if self._stop_flag.is_set():
+                # בוטל בזמן שהתהליך עוד עלה: stop() לא מצא עדיין תהליך להרוג — בלי זה mtk
+                # נשאר רץ ברקע, ממשיך לתפוס את המכשיר ומפיל את הפעולה הבאה
+                self._kill_tree()
+                self.returncode = -2
+                log.warn("הפקודה הופסקה על ידי המשתמש")
+                return
             assert self.process and self.process.stdout
             if self.connect_timeout:
                 threading.Thread(target=self._connect_watchdog, daemon=True).start()
@@ -110,8 +117,10 @@ class MtkCommand:
                         pct, suffix = parse_progress_line(line)
                         if pct is not None:
                             on_progress(pct, suffix)
-            except (ValueError, OSError):
+            except (ValueError, OSError, RuntimeError):
                 pass   # ה-pipe נסגר עקב ביטול — יציאה נקייה
+            if self._stop_flag.is_set():
+                self._kill_tree()   # ביטול שהגיע בין שורות — מוודאים שהתהליך באמת מת
             try:
                 self.process.wait(timeout=5)
             except Exception:

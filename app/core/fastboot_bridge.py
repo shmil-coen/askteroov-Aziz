@@ -128,6 +128,14 @@ class FastbootCommand:
                 self.returncode = -1
                 return
 
+            if self._stop_flag.is_set():   # בוטל בזמן שהתהליך עוד עלה — לא משאירים אותו רץ
+                try:
+                    self.process.kill()
+                except OSError:
+                    pass
+                self.returncode = -2
+                log.warn("הפקודה הופסקה על ידי המשתמש")
+                return
             assert self.process and self.process.stdout
             threading.Thread(target=self._device_watchdog, args=(on_progress,),
                              daemon=True).start()
@@ -149,7 +157,7 @@ class FastbootCommand:
                         pct, suffix = _parse_progress(line)
                         if pct is not None:
                             on_progress(pct, suffix)
-            except (ValueError, OSError):
+            except (ValueError, OSError, RuntimeError):
                 pass   # ה-pipe נסגר (אין מכשיר / ביטול) — יציאה נקייה
 
             self.process.wait()

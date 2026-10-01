@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
-    QInputDialog,
+    QScrollArea,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -737,7 +737,7 @@ class MainWindow(QMainWindow):
         dot.setToolTip("לחץ למידע נוסף")
 
         def show(_=False):
-            QMessageBox.information(self, title, body)
+            ui_kit.MessageBox.information(self, title, body)
 
         dot.mousePressEvent = show
         return dot
@@ -748,7 +748,7 @@ class MainWindow(QMainWindow):
             return factory(*args, **kwargs)
         except (RuntimeError, ValueError, OSError) as e:
             self._say("error", str(e))
-            QMessageBox.critical(self, "שגיאה – לא ניתן לבצע",
+            ui_kit.MessageBox.critical(self, "שגיאה – לא ניתן לבצע",
                                  f"{e}\n\nבדוק את ההוראות (כפתור ההוראות בראש הלשונית).")
             return None
 
@@ -757,7 +757,7 @@ class MainWindow(QMainWindow):
         if job is None:
             return False
         if job_manager.busy:
-            QMessageBox.warning(self, "עסוק",
+            ui_kit.MessageBox.warning(self, "עסוק",
                                 "יש פעולה פעילה — המתן לסיומה או לחץ 'בטל פעולה'.")
             return False
         # חלון "אישור פעולה" כמו בדמו: שם הפעולה + תגית הסוג (קריאה / כתיבה / מסוכנת),
@@ -792,7 +792,7 @@ class MainWindow(QMainWindow):
         try:
             job_manager.submit(job)
         except RuntimeError as e:
-            QMessageBox.warning(self, "עסוק", str(e))
+            ui_kit.MessageBox.warning(self, "עסוק", str(e))
             return False
         self.cancel_btn.setEnabled(True)
         if getattr(self, "_clear_timer", None):
@@ -1557,7 +1557,7 @@ class MainWindow(QMainWindow):
     def _current_scatter_path(self) -> Path | None:
         p = self.scatter_path_edit.text().strip()
         if not p:
-            QMessageBox.warning(self, "חסר קובץ", "בחר קובץ Scatter קודם")
+            ui_kit.MessageBox.warning(self, "חסר קובץ", "בחר קובץ Scatter קודם")
             return None
         return Path(p)
 
@@ -1601,7 +1601,7 @@ class MainWindow(QMainWindow):
         if not path:
             return   # כבר הוצגה האזהרה "בחר קובץ Scatter קודם"
         if not path.is_file():
-            QMessageBox.warning(self, "קובץ חסר", "הקובץ לא נמצא")
+            ui_kit.MessageBox.warning(self, "קובץ חסר", "הקובץ לא נמצא")
             return
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
@@ -2296,7 +2296,7 @@ class MainWindow(QMainWindow):
         מחזיר dict של הבחירות, או None בביטול."""
         apks = self._dev_scan_magisk_apks()
         if not apks:
-            QMessageBox.critical(self, "אין קובצי Magisk",
+            ui_kit.MessageBox.critical(self, "אין קובצי Magisk",
                                  "לא נמצאו קובצי Magisk-vX.apk בתוך tools\\Magisk.")
             return None
         guessed_cpu = getattr(self.gpt, "cpu", "") if self.gpt else ""
@@ -2315,7 +2315,7 @@ class MainWindow(QMainWindow):
 
     def _dev_start_architecture(self, use_fastboot: bool):
         if job_manager.busy:
-            QMessageBox.warning(self, "עסוק", "יש פעולה פעילה — המתן לסיומה.")
+            ui_kit.MessageBox.warning(self, "עסוק", "יש פעולה פעילה — המתן לסיומה.")
             return
         cfg = self._dev_config_dialog(use_fastboot)
         if cfg is None:
@@ -2361,14 +2361,14 @@ class MainWindow(QMainWindow):
         use_fastboot = payload["use_fastboot"]
         if stage == "job1":
             if not ok:
-                QMessageBox.critical(self, "שלב 1 נכשל",
+                ui_kit.MessageBox.critical(self, "שלב 1 נכשל",
                                      "הניתוח/הפאץ' נכשלו — לא נכתב כלום למכשיר. "
                                      "פרטים בלשונית הלוג.")
                 return
             self._dev_submit_job1b(state, use_fastboot)
         elif stage == "job1b":
             if not ok:
-                QMessageBox.critical(self, "Preflight נכשל",
+                ui_kit.MessageBox.critical(self, "Preflight נכשל",
                                      "האימות לפני הכתיבה נכשל — הפעולה נעצרה ולא נכתב "
                                      "כלום למכשיר. פרטים בלשונית הלוג.")
                 return
@@ -2377,25 +2377,20 @@ class MainWindow(QMainWindow):
                       f"Slot: {state.slot_detail}\n"
                       f"vbmeta עצמאי: {'כן' if state.has_vbmeta else 'לא'}\n\n"
                       f"Preflight:\n{report_text}")
-            box = QMessageBox(self)
-            box.setWindowTitle("תוצאות שלב 1 — לפני כתיבה סופית")
-            box.setIcon(QMessageBox.Icon.Information)
-            box.setText("הניתוח הושלם. לבדוק ולהמשיך לכתיבה הסופית?")
-            box.setInformativeText(summary)
-            box.setStandardButtons(QMessageBox.StandardButton.Yes
-                                   | QMessageBox.StandardButton.Cancel)
-            box.button(QMessageBox.StandardButton.Yes).setText("🔥 המשך לכתיבה הסופית")
-            box.button(QMessageBox.StandardButton.Cancel).setText("ביטול")
-            box.setDefaultButton(QMessageBox.StandardButton.Cancel)
-            if box.exec() == QMessageBox.StandardButton.Yes:
+            box = ui_kit.Modal(self, "תוצאות שלב 1 — לפני כתיבה סופית", icon="info", wide=True)
+            box.add_text("הניתוח הושלם. לבדוק ולהמשיך לכתיבה הסופית?", "hint")
+            ui_kit.MessageBox.add_body(box, summary)
+            box.add_button("🔥 המשך לכתיבה הסופית", "go", "btnDanger")
+            box.add_button("ביטול", "", default=True)
+            if box.run() == "go":
                 self._dev_submit_job2(state, use_fastboot)
         elif stage == "job2":
             if ok:
-                QMessageBox.information(self, "רוטינג הושלם",
+                ui_kit.MessageBox.information(self, "רוטינג הושלם",
                                         "הכתיבה אומתה בהצלחה (SHA256 תואם).\n"
                                         f"תיעוד מלא נשמר ב:\n{state.job_dir}")
             else:
-                QMessageBox.critical(self, "הכתיבה נכשלה",
+                ui_kit.MessageBox.critical(self, "הכתיבה נכשלה",
                                      "הכתיבה/האימות נכשלו — פרטים בלשונית הלוג.\n"
                                      f"גיבוי המקור נשמר ב:\n{state.job_dir / 'backups'}")
 
@@ -2536,7 +2531,7 @@ class MainWindow(QMainWindow):
 
     def _fb_guard(self) -> bool:
         if not config.fastboot_available():
-            QMessageBox.warning(self, "אין fastboot",
+            ui_kit.MessageBox.warning(self, "אין fastboot",
                                 "fastboot.exe לא נמצא. ודא שקובץ fastboot.exe נמצא "
                                 "בתיקיית tools של התוכנה.")
             return False
@@ -2700,10 +2695,10 @@ class MainWindow(QMainWindow):
         image = Path(self.fb_image_edit.text().strip())
         part = self.fb_part_edit.text().strip()
         if not part:
-            QMessageBox.warning(self, "חסר שם מחיצה", "הזן שם מחיצה (למשל boot)")
+            ui_kit.MessageBox.warning(self, "חסר שם מחיצה", "הזן שם מחיצה (למשל boot)")
             return
         if not image.is_file():
-            QMessageBox.warning(self, "קובץ חסר", "בחר קובץ Image תקין")
+            ui_kit.MessageBox.warning(self, "קובץ חסר", "בחר קובץ Image תקין")
             return
         self._request(self._plan(plan_fastboot_flash, part, image))
 
@@ -2713,7 +2708,7 @@ class MainWindow(QMainWindow):
         self._retry_action = None
         part = self.fb_part_edit.text().strip()
         if not part:
-            QMessageBox.warning(self, "חסר שם מחיצה", "הזן שם מחיצה למחיקה")
+            ui_kit.MessageBox.warning(self, "חסר שם מחיצה", "הזן שם מחיצה למחיקה")
             return
         self._request(self._plan(plan_fastboot_erase, part))
 
@@ -2768,7 +2763,7 @@ class MainWindow(QMainWindow):
         if getattr(self, "_startup_dialog_open", False):
             self._python_offer_pending = True   # יוצג מיד אחרי שדיאלוג הפתיחה נסגר
             return
-        if QMessageBox.question(
+        if ui_kit.MessageBox.question(
                         self, "חסר פייתון",
                         "כדי לעבוד עם mtkclient (מצב BROM) צריך פייתון במחשב.\n\n"
                         "להתקין אותו עכשיו אוטומטית, עם כל הספריות? "
@@ -2782,7 +2777,7 @@ class MainWindow(QMainWindow):
         from ..core import pyinstall
         if getattr(self, "_pyinstall_running", False):
             return
-        if confirm and QMessageBox.question(
+        if confirm and ui_kit.MessageBox.question(
                 self, "התקנת פייתון וספריות",
                 "התוכנה תוריד ותתקין את פייתון מהאתר הרשמי (אם הוא לא מותקן), "
                 "עם PATH מסומן, ואז את הספריות של mtkclient.\n\n"
@@ -3022,7 +3017,7 @@ class MainWindow(QMainWindow):
         # משהים את הזיהוי התקופתי בזמן הדיאלוג — כדי שהוא לא יקפוץ שוב מאחוריו
         self._battery_probe_paused = True
         try:
-            QMessageBox.warning(
+            ui_kit.MessageBox.warning(
                 self, "⚠️ סוללה נמוכה",
                 f"{note}\n\nרמת/מתח הסוללה נמוכים מדי — לא מומלץ לצרוב או לבצע פעולות "
                 "כתיבה במצב הזה. צריבה שנקטעת בגלל סוללה חלשה עלולה להזיק למכשיר.\n\n"
@@ -3430,7 +3425,7 @@ class MainWindow(QMainWindow):
             return
         self._brom_suggest_open = True
         try:
-            if QMessageBox.question(
+            if ui_kit.MessageBox.question(
                     self, "מכשיר במצב BROM/Preloader",
                     "לא נמצא מכשיר במצב ADB, אבל זוהה פורט BROM/Preloader של MediaTek.\n\n"
                     "לקרוא עכשיו את טבלת המחיצות (GPT) דרך mtkclient?\n"
@@ -3529,25 +3524,22 @@ class MainWindow(QMainWindow):
     def _unsure_tool_flow(self, dlg):
         """'אני לא יודע עדיין': שאלה אחת על מצב מפתחים — ולפי התשובה ADB או mtkclient."""
         dlg.accept()
-        q = QMessageBox(self)
-        q.setIcon(QMessageBox.Icon.Question)
-        q.setWindowTitle("איך להתחבר למכשיר?")
-        q.setText("במכשיר שלך מופעל מצב מפתחים עם ניפוי באגים ב-USB?")
-        q.setInformativeText(
-            "אם המכשיר נדלק ואפשר להפעיל את זה — זו הדרך הפשוטה (ADB).\n"
-            "אם המכשיר לא נדלק, תקוע, או שאי אפשר להפעיל — נעבור ל-mtkclient.")
-        b_yes = q.addButton("כן, מופעל", QMessageBox.ButtonRole.YesRole)
-        b_can = q.addButton("לא, אבל אפשר להפעיל", QMessageBox.ButtonRole.ActionRole)
-        b_no = q.addButton("לא / המכשיר לא נדלק", QMessageBox.ButtonRole.NoRole)
-        q.setDefaultButton(b_yes)
-        q.exec()
-        clicked = q.clickedButton()
-        if clicked is b_yes:
+        q = ui_kit.Modal(self, "איך להתחבר למכשיר?", icon="info", wide=True)
+        q.add_text("במכשיר שלך מופעל מצב מפתחים עם ניפוי באגים ב-USB?")
+        q.add_text("אם המכשיר נדלק ואפשר להפעיל את זה — זו הדרך הפשוטה "
+                   f"({ui_kit.ltr('ADB')}).<br>"
+                   "אם המכשיר לא נדלק, תקוע, או שאי אפשר להפעיל — נעבור ל-"
+                   f"{ui_kit.ltr('mtkclient')}.", "hint")
+        q.add_button("כן, מופעל", "yes", "btnPrimary", default=True)
+        q.add_button("לא, אבל אפשר להפעיל", "can", "btnSoft")
+        q.add_button("לא / המכשיר לא נדלק", "no", "btnSoft")
+        clicked = q.run()
+        if clicked == "yes":
             self._select_tool("adb", None)
-        elif clicked is b_can:
+        elif clicked == "can":
             self._show_mode_instructions("adb")
             self._select_tool("adb", None)
-        elif clicked is b_no:
+        elif clicked == "no":
             self._show_mode_instructions("brom")
             self._select_tool("brom", None)
 
@@ -3569,45 +3561,64 @@ class MainWindow(QMainWindow):
             self._suggest_brom_gpt()
 
     def _show_mode_instructions(self, tool: str):
-        """חלון הוראות מפורט לכל מצב תקשורת."""
+        """חלון הוראות מפורט לכל מצב תקשורת — בעיצוב החלונות החדשים: הקדמה · צעדים ·
+        הערה."""
+        esc = html.escape
+        intro, steps_title, steps, note, note_kind, footer = "", "", [], "", "noticeInfo", ""
         if tool == "adb":
             title = "הוראות: הכנת המכשיר ל-ADB"
-            text = (
-                "1. במכשיר: הגדרות ← על הטלפון/מידע על התוכנה ← הקש 7 פעמים על "
-                "'מספר ה-Build' עד להודעה 'אתה כעת מפתח'.\n\n"
-                "2. חזור להגדרות ← מערכת ← אפשרויות מפתחים ← הפעל "
-                "'ניפוי באגים USB' (USB Debugging).\n\n"
-                "3. חבר את המכשיר בכבל USB — במסך המכשיר תופיע בקשת אישור "
-                "'אפשר ניפוי באגים USB' — אשר אותה (ניתן לסמן 'תמיד').\n\n"
-                "4. אם נשאל לגבי מצב USB — בחר 'העברת קבצים' (MTP).\n\n"
-                "כשהחיבור תקין, הדגם ואחוז הסוללה יופיעו אוטומטית בכותרת למעלה.")
+            steps_title = "מה לעשות במכשיר"
+            steps = [
+                "הגדרות ← על הטלפון/מידע על התוכנה ← הקש 7 פעמים על 'מספר ה-Build' "
+                "עד להודעה 'אתה כעת מפתח'.",
+                "חזור להגדרות ← מערכת ← אפשרויות מפתחים ← הפעל "
+                "'ניפוי באגים USB' (USB Debugging).",
+                "חבר את המכשיר בכבל USB — במסך המכשיר תופיע בקשת אישור "
+                "'אפשר ניפוי באגים USB' — אשר אותה (ניתן לסמן 'תמיד').",
+                "אם נשאל לגבי מצב USB — בחר 'העברת קבצים' (MTP).",
+            ]
+            footer = "כשהחיבור תקין, הדגם ואחוז הסוללה יופיעו אוטומטית בכותרת למעלה."
         elif tool == "fastboot":
             title = "הוראות: כניסה למצב Fastboot"
-            text = (
-                "מצב Fastboot רץ על הבוטלאודר — שימושי לצריבת קובצי \u200e.img לפי שם מחיצה "
-                "(boot, recovery, vbmeta וכדומה), מחיקת מחיצות ופעולות בוטלאודר.\n\n"
-                "כניסה למצב:\n"
-                "• מהמכשיר הדלוק (עם ADB): לחץ בלשונית ADB על 'עבור למצב Fastboot' — "
-                "התוכנה מריצה 'adb reboot bootloader' וממתינה לזיהוי המכשיר ב-Fastboot.\n"
-                "• ידנית: כבה את המכשיר, ואז החזק כפתור הפעלה + ווליום מטה (או שני "
-                "הווליומים — תלוי דגם) עד שמופיע לוגו Fastboot.\n\n"
-                "דרישות: דרייבר 'Android Bootloader Interface' (כפתורי הדרייברים "
-                "בלשונית Fastboot), ולצריבה/מחיקה — בוטלאודר פתוח.\n\n"
-                "⚠️ שים לב: צריבת מחיצה שגויה עלולה להמית את המכשיר. גבה קודם!")
+            intro = ("מצב Fastboot רץ על הבוטלאודר — שימושי לצריבת קובצי "
+                     f"{ui_kit.ltr('.img')} לפי שם מחיצה (boot, recovery, vbmeta וכדומה), "
+                     "מחיקת מחיצות ופעולות בוטלאודר.")
+            steps_title = "כניסה למצב"
+            steps = [
+                "מהמכשיר הדלוק (עם ADB): לחץ בלשונית ADB על 'עבור למצב Fastboot' — "
+                "התוכנה מריצה 'adb reboot bootloader' וממתינה לזיהוי המכשיר ב-Fastboot.",
+                "או ידנית: כבה את המכשיר, ואז החזק כפתור הפעלה + ווליום מטה (או שני "
+                "הווליומים — תלוי דגם) עד שמופיע לוגו Fastboot.",
+            ]
+            footer = ("דרישות: דרייבר 'Android Bootloader Interface' (כפתורי הדרייברים "
+                      "בלשונית Fastboot), ולצריבה/מחיקה — בוטלאודר פתוח.")
+            note = "<b>שים לב:</b> צריבת מחיצה שגויה עלולה להמית את המכשיר. גבה קודם!"
+            note_kind = "noticeDanger"
         else:
-            title = "הוראות: חיבור במצב BROM/Preloader\u200f (mtkclient)\u200f"
-            text = (
-                "מצב BROM הוא השכבה הנמוכה ביותר בשבב — עובד גם כשהמכשיר כבוי, "
-                "תקול או נתקע בלולאת אתחול. דרכו ניתן לקרוא GPT, לשאוב ולצרוב מחיצות "
-                "ולנהל את הבוטלאודר.\n\n"
-                "כניסה למצב:\n"
-                "1. כבה את המכשיר לגמרי (או הוצא את הסוללה אם ניתן).\n"
-                "2. החזק את כפתורי ווליום מעלה + ווליום מטה (או את כל הכפתורים).\n"
-                "3. תוך כדי ההחזקה — חבר את כבל ה-USB.\n\n"
-                "ל-Preloader: חבר USB בלי ללחוץ על כפתורים כלל.\n\n"
-                "הזיהוי כאן אוטומטי — ברגע שפורט MTK מופיע, תוצע לך קריאת GPT "
-                "שמזהה גם את שם המעבד.")
-        QMessageBox.information(self, title, text)
+            title = f"הוראות: חיבור במצב BROM/Preloader {ui_kit.ltr('(mtkclient)')}"
+            intro = ("מצב BROM הוא השכבה הנמוכה ביותר בשבב — עובד גם כשהמכשיר כבוי, "
+                     "תקול או נתקע בלולאת אתחול. דרכו ניתן לקרוא GPT, לשאוב ולצרוב מחיצות "
+                     "ולנהל את הבוטלאודר.")
+            steps_title = "כניסה למצב BROM"
+            steps = [
+                "כבה את המכשיר לגמרי (או הוצא את הסוללה אם ניתן).",
+                "החזק את כפתורי ווליום מעלה + ווליום מטה (או את כל הכפתורים).",
+                "תוך כדי ההחזקה — חבר את כבל ה-USB.",
+            ]
+            note = "<b>ל-Preloader:</b> חבר USB בלי ללחוץ על כפתורים כלל."
+            footer = ("הזיהוי כאן אוטומטי — ברגע שפורט MTK מופיע, תוצע לך קריאת GPT "
+                      "שמזהה גם את שם המעבד.")
+        dlg = ui_kit.Modal(self, title, icon="info", wide=True)
+        if intro:
+            dlg.add_text(intro)
+        dlg.add_text(esc(steps_title), "secTitle")
+        dlg.add(ui_kit.steps_list([esc(t) for t in steps]))
+        if note:
+            dlg.add_text(note, note_kind)
+        if footer:
+            dlg.add_text(esc(footer), "hint")
+        dlg.add_button("סגור", "", "btnPrimary", default=True)
+        dlg.run()
 
     def _update_ports_table(self, ports):
         self.ports_table.setRowCount(0)
@@ -3629,7 +3640,7 @@ class MainWindow(QMainWindow):
         """
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(
+            ui_kit.MessageBox.warning(
                 self, "אין adb",
                 "adb.exe לא נמצא. ודא שתיקיית tools מכילה את platform-tools "
                 "(או הגדר ASKATEROOV_ADB).")
@@ -3782,7 +3793,9 @@ class MainWindow(QMainWindow):
         hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        # עמודת הגודל רחבה וקבועה (על חשבון שם החבילה, שנמתחת לשארית) — כך הגודל לא נחתך
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        hh.resizeSection(3, 140)
         self.adb_apps_table.setIconSize(QSize(40, 40))
         self.adb_apps_table.verticalHeader().setDefaultSectionSize(48)
         self.adb_apps_table.verticalHeader().setVisible(False)
@@ -3855,6 +3868,7 @@ class MainWindow(QMainWindow):
         bar.setSpacing(8)
         b_fs_up = ui_kit.icon_button("up", "תיקייה למעלה")
         b_fs_up.clicked.connect(self._fs_up)
+        self._fs_up_btn = b_fs_up
         bar.addWidget(b_fs_up)
         # הנתיב — כל חלק בו הוא כפתור (כמו בדמו); ✎ מאפשר גם להקליד נתיב
         self._fs_crumbs = QFrame()
@@ -3920,6 +3934,7 @@ class MainWindow(QMainWindow):
         self._fs_entries: list = []
         self._fs_cwd = "/sdcard"
         self._fs_update_crumbs("/sdcard")
+        self._fs_update_up_button("/sdcard")
         grid.addWidget(c_fs, 2, 0, 1, 2)
 
         # ---- בוטלאודר ומעבר ל-Fastboot (ברוחב מלא — ארבעה כפתורים)
@@ -4029,30 +4044,55 @@ class MainWindow(QMainWindow):
         return w
 
     # ------------------------------------------------------------ סייר קבצים — נתיב ובחירה
+    # תיקיית הבסיס של הסייר — האחסון הפנימי של המשתמש (כל השמות שלה במכשירים שונים)
+    _FS_HOME = "/sdcard"
+    _FS_HOME_ALIASES = ("/sdcard", "/storage/emulated/0", "/storage/self/primary", "/mnt/sdcard")
+
+    def _fs_home_prefix(self, path: str) -> str:
+        """אם הנתיב בתוך האחסון הפנימי — מחזיר את הקידומת שלו (למשל /sdcard), אחרת ''."""
+        p = (path or "").rstrip("/") or "/"
+        for alias in self._FS_HOME_ALIASES:
+            if p == alias or p.startswith(alias + "/"):
+                return alias
+        return ""
+
     def _fs_update_crumbs(self, path: str):
-        """בונה את הנתיב שאפשר ללחוץ על כל חלק בו (כמו בדמו)."""
+        """בונה את הנתיב שאפשר ללחוץ על כל חלק בו (כמו בדמו). הבסיס הוא האחסון הפנימי
+        של המשתמש; נתיב מחוץ אליו (הוקלד ידנית) מציג גם כפתור "שורש המכשיר"."""
         lay = self._fs_crumbs_lay
         while lay.count():
             item = lay.takeAt(0)
             if item.widget() is not None:
                 item.widget().deleteLater()
-        parts = [p for p in (path or "/").split("/") if p]
-        if not parts:
-            b = QPushButton("/")
+
+        def crumb(text: str, target: str):
+            b = QPushButton(text)
             b.setObjectName("crumb")
-            b.clicked.connect(lambda: self._fs_load("/"))
+            b.clicked.connect(lambda _=False, p=target: self._fs_load(p))
             lay.addWidget(b)
-        acc = ""
-        for i, part in enumerate(parts):
-            acc += "/" + part
-            if i:
-                sep = QLabel("/")
-                sep.setObjectName("crumbSep")
-                lay.addWidget(sep)
-            b = QPushButton(part)
-            b.setObjectName("crumb")
-            b.clicked.connect(lambda _=False, p=acc: self._fs_load(p))
-            lay.addWidget(b)
+
+        def sep(text: str = "/"):
+            s = QLabel(text)
+            s.setObjectName("crumbSep")
+            lay.addWidget(s)
+
+        prefix = self._fs_home_prefix(path)
+        crumb("אחסון פנימי", self._FS_HOME)   # הבסיס — תמיד ראשון וניתן ללחיצה
+        if prefix:
+            rest = [p for p in (path or "").rstrip("/")[len(prefix):].split("/") if p]
+            acc = prefix
+            for part in rest:
+                acc += "/" + part
+                sep()
+                crumb(part, acc)
+        else:
+            sep("|")
+            crumb("/", "/")
+            acc = ""
+            for part in [p for p in (path or "/").split("/") if p]:
+                acc += "/" + part
+                sep()
+                crumb(part, acc)
         lay.addStretch(1)
 
     def _fs_toggle_path_edit(self):
@@ -4112,22 +4152,22 @@ class MainWindow(QMainWindow):
             if one:
                 pkgs = [one]
         if not pkgs:
-            QMessageBox.warning(self, "לא נבחרה אפליקציה",
+            ui_kit.MessageBox.warning(self, "לא נבחרה אפליקציה",
                                 "סמן ✔ אפליקציות בטבלה (אפשר כמה), או הזן שם חבילה בשדה.")
             return
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         listing = "\n".join(pkgs[:15]) + (f"\n…ועוד {len(pkgs) - 15}" if len(pkgs) > 15 else "")
-        keep = QMessageBox.question(
+        keep = ui_kit.MessageBox.question(
             self, "הסרת אפליקציות",
             f"להסיר {len(pkgs)} אפליקציות?\n\n{listing}\n\n"
             "'כן' = הסרה מלאה (כולל נתונים).\n"
             "'לא' = הסרה תוך שמירת נתונים ומטמון (-k).",
             _YES | _NO, _NO)
         if keep == _NO:
-            full = QMessageBox.question(
+            full = ui_kit.MessageBox.question(
                 self, "אישור הסרה",
                 f"להסיר {len(pkgs)} אפליקציות עם שמירת נתונים?\n"
                 "(התקנה מחדש תחזיר את הנתונים)",
@@ -4267,11 +4307,11 @@ class MainWindow(QMainWindow):
     def _adb_install(self):
         apk = Path(self.adb_apk_edit.text().strip())
         if not apk or not apk.is_file():
-            QMessageBox.warning(self, "קובץ חסר", "בחר קובץ APK תקין")
+            ui_kit.MessageBox.warning(self, "קובץ חסר", "בחר קובץ APK תקין")
             return
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         reinstall = self.adb_reinstall_check.isChecked()
         allow_downgrade = self.adb_downgrade_check.isChecked()
@@ -4302,7 +4342,7 @@ class MainWindow(QMainWindow):
         adb = config.find_adb_exe()
         if not adb:
             return
-        keep = QMessageBox.question(
+        keep = ui_kit.MessageBox.question(
             self, "התקנת גרסה ישנה חסומה",
             f"אנדרואיד חוסם התקנת גרסה ישנה מהמותקנת ({apk.name}).\n\n"
             "אפשר להסיר קודם את הגרסה המותקנת ואז להתקין את הישנה.\n\n"
@@ -4333,17 +4373,17 @@ class MainWindow(QMainWindow):
         pkg = self.adb_admin_edit.text().strip() or self._selected_app_package() or ""
         pkg = pkg.split("/")[0].strip()
         if not pkg:
-            QMessageBox.warning(self, "חסר שם חבילה",
+            ui_kit.MessageBox.warning(self, "חסר שם חבילה",
                                 "הזן שם חבילה או בחר אפליקציה בטבלה.")
             return
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         kind = "בעלות מלאה על המכשיר (device owner)" if owner else "מנהל-התקן (device admin)"
         warn = ("⚠️ הענקת בעלות מלאה דורשת מכשיר ללא חשבונות (כולל Google), "
                 "והסרתה בהמשך עלולה לדרוש איפוס יצרן.\n\n" if owner else "")
-        if QMessageBox.question(
+        if ui_kit.MessageBox.question(
                 self, "אישור הענקת הרשאות",
                 f"להעניק ל-{pkg} {kind}?\n\n{warn}להמשיך?",
                 _YES | _NO, _NO) != _YES:
@@ -4381,7 +4421,7 @@ class MainWindow(QMainWindow):
     def _fs_adb(self):
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
         return adb
 
     def _fs_load(self, path: str):
@@ -4413,6 +4453,7 @@ class MainWindow(QMainWindow):
         self._fs_cwd = path
         self.fs_path_edit.setText(path)
         self._fs_update_crumbs(path)
+        self._fs_update_up_button(path)
         self._fs_stack.setCurrentWidget(self.fs_table)
         t = self.fs_table
         t.setRowCount(0)
@@ -4432,12 +4473,24 @@ class MainWindow(QMainWindow):
 
     def _fs_up(self):
         from ..core import adb_files
-        self._fs_load(adb_files.posix_parent(self._fs_cwd))
+        cwd = (self._fs_cwd or "").rstrip("/") or "/"
+        if cwd in self._FS_HOME_ALIASES:
+            self._toast("info", "זו תיקיית הבסיס — האחסון הפנימי. אפשר לעבור לנתיב אחר "
+                                "בעזרת ✎ (הקלדת נתיב).")
+            return
+        self._fs_load(adb_files.posix_parent(cwd))
+
+    def _fs_update_up_button(self, path: str):
+        """כפתור "תיקייה למעלה" כבוי בתיקיית הבסיס (האחסון הפנימי) ובשורש המכשיר."""
+        p = (path or "").rstrip("/") or "/"
+        top = p == "/" or p in self._FS_HOME_ALIASES
+        self._fs_up_btn.setEnabled(not top)
+        self._fs_up_btn.setToolTip("זו תיקיית הבסיס" if top else "תיקייה למעלה")
 
     def _fs_selected(self):
         r = self.fs_table.currentRow()
         if r < 0 or r >= len(self._fs_entries):
-            QMessageBox.information(self, "בחר פריט", "בחר קובץ או תיקייה מהרשימה.")
+            ui_kit.MessageBox.information(self, "בחר פריט", "בחר קובץ או תיקייה מהרשימה.")
             return None
         return self._fs_entries[r]
 
@@ -4514,7 +4567,7 @@ class MainWindow(QMainWindow):
         if not adb:
             return
         from ..core import adb_files
-        name, ok = QInputDialog.getText(self, "תיקייה חדשה", "שם התיקייה:")
+        name, ok = ui_kit.MessageBox.get_text(self, "תיקייה חדשה", "שם התיקייה:")
         if not ok or not name.strip():
             return
         self._fs_op_async("יצירת תיקייה",
@@ -4528,7 +4581,7 @@ class MainWindow(QMainWindow):
         if not adb:
             return
         from ..core import adb_files
-        name, ok = QInputDialog.getText(self, "שינוי שם", "שם חדש:", text=e.name)
+        name, ok = ui_kit.MessageBox.get_text(self, "שינוי שם", "שם חדש:", text=e.name)
         if not ok or not name.strip():
             return
         self._fs_op_async("שינוי שם",
@@ -4543,7 +4596,7 @@ class MainWindow(QMainWindow):
             return
         from ..core import adb_files
         what = "התיקייה וכל תוכנה" if e.is_dir else "הקובץ"
-        if QMessageBox.warning(
+        if ui_kit.MessageBox.warning(
                 self, "מחיקה",
                 f"למחוק לצמיתות את {what}?\n\n{e.path}\n\n"
                 "⚠️ אין 'סל מיחזור' ב-ADB — המחיקה בלתי הפיכה.",
@@ -4556,7 +4609,7 @@ class MainWindow(QMainWindow):
         if not e:
             return
         if e.is_dir:
-            QMessageBox.information(self, "עריכה", "בחר קובץ טקסט, לא תיקייה.")
+            ui_kit.MessageBox.information(self, "עריכה", "בחר קובץ טקסט, לא תיקייה.")
             return
         adb = self._fs_adb()
         if not adb:
@@ -4607,7 +4660,7 @@ class MainWindow(QMainWindow):
     def _adb_list_packages(self):
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         include_sys = self.adb_sys_check.isChecked()
         self._apps_gen += 1
@@ -4704,7 +4757,7 @@ class MainWindow(QMainWindow):
     def _adb_boot_read(self):
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         self.adb_boot_view.setPlainText("בודק…")
 
@@ -4729,12 +4782,12 @@ class MainWindow(QMainWindow):
         from ..core.jobs import Job, Step
         adb = config.find_adb_exe()
         if not adb or not config.find_fastboot_exe():
-            QMessageBox.warning(self, "חסר כלי",
+            ui_kit.MessageBox.warning(self, "חסר כלי",
                                 "צריך גם adb.exe וגם fastboot.exe בתיקיית tools.")
             return
         st = adb_boot.read_state(str(adb))
         if unlock and st.get("oem_allowed") is False:
-            QMessageBox.warning(
+            ui_kit.MessageBox.warning(
                 self, "ביטול נעילת OEM כבוי",
                 "לפני פתיחת הבוטלאודר צריך להפעיל במכשיר:\n"
                 "הגדרות ← אפשרויות מפתחים ← 'ביטול נעילת OEM' (OEM unlocking).\n\n"
@@ -4748,7 +4801,7 @@ class MainWindow(QMainWindow):
             warn = ("⚠️ נעילת הבוטלאודר מוחקת גם היא את הנתונים במכשיר ברוב המכשירים.\n"
                     "ואם מותקנת במכשיר מערכת לא מקורית (ROM מותאם / Magisk) — "
                     "נעילה עלולה למנוע מהמכשיר לעלות!\n\nלהמשיך?")
-        if QMessageBox.warning(self, "פתיחת בוטלאודר" if unlock else "נעילת בוטלאודר",
+        if ui_kit.MessageBox.warning(self, "פתיחת בוטלאודר" if unlock else "נעילת בוטלאודר",
                                warn, _YES | _NO, _NO) != _YES:
             return
         verb = "פתיחת" if unlock else "נעילת"
@@ -4774,10 +4827,10 @@ class MainWindow(QMainWindow):
         from ..core.jobs import Job, Step
         adb = config.find_adb_exe()
         if not adb:
-            QMessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "אין adb", "adb.exe לא נמצא בתיקיית tools.")
             return
         if not device_info.adb_devices_connected(str(adb)):
-            QMessageBox.warning(
+            ui_kit.MessageBox.warning(
                 self, "לא נמצא מכשיר ב-ADB",
                 "כדי לעבור למצב Fastboot צריך מכשיר דלוק ומחובר ב-ADB.\n\n"
                 "חבר את המכשיר בכבל USB ואשר במסך המכשיר את בקשת ניפוי הבאגים.")
@@ -4903,7 +4956,7 @@ class MainWindow(QMainWindow):
     def _adb_app_info(self):
         pkg = self._selected_app_package()
         if not pkg:
-            QMessageBox.information(self, "מידע על אפליקציה",
+            ui_kit.MessageBox.information(self, "מידע על אפליקציה",
                                     "בחר קודם אפליקציה מהטבלה.")
             return
         adb = config.find_adb_exe()
@@ -4940,15 +4993,23 @@ class MainWindow(QMainWindow):
             ("מיקום הקוד", d.get("codePath", "")),
             ("תיקיית נתונים", d.get("dataDir", "")),
         ]
-        html = "<table>" + "".join(
-            f"<tr><td><b>{k}:</b>&nbsp;&nbsp;</td><td>{v}</td></tr>"
-            for k, v in rows if v) + "</table>"
-        dlg = QMessageBox(self)
-        dlg.setWindowTitle(f"מידע על האפליקציה — {name}")
-        dlg.setText(html)
+        dlg = ui_kit.Modal(self, f"מידע על האפליקציה — {name}", wide=True)
         if icon is not None and not icon.isNull():
-            dlg.setIconPixmap(icon.pixmap(64, 64))
-        dlg.exec()
+            pic = QLabel()
+            pic.setPixmap(icon.pixmap(64, 64))
+            dlg.add(pic, 0)
+        kv = ui_kit.KeyValueList(150)
+        kv.set_rows([(k, ui_kit.breakable_path(str(v))) for k, v in rows if v])
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setMaximumHeight(380)
+        scroll.setStyleSheet("QScrollArea { background: transparent; }"
+                             " QScrollArea > QWidget > QWidget { background: transparent; }")
+        scroll.setWidget(kv)
+        dlg.add(scroll)
+        dlg.add_button("סגור", "", "btnPrimary", default=True)
+        dlg.run()
 
     def _read_gpt(self):
         self._retry_action = self._read_gpt
@@ -5001,41 +5062,30 @@ class MainWindow(QMainWindow):
             cur = job_manager.current
             if job_manager.busy and cur is not None and cur.name != "קריאת GPT":
                 return   # פעולה אחרת רצה — לא נתקענו, לא מפריעים
-            dlg = QMessageBox(self)
-            dlg.setIcon(QMessageBox.Icon.Warning)
-            dlg.setWindowTitle("המכשיר לא זוהה")
-            dlg.setText("לא התקבל חיבור מהמכשיר במשך דקה ורבע.\n"
-                        "הניסיון לקרוא את טבלת המחיצות (GPT) דרך mtkclient לא הצליח.")
-            dlg.setInformativeText(
-                "הכי נפוץ: המכשיר לא הוכנס נכון למצב BROM/Preloader.\n"
-                "🔽 לחץ 'הצג פרטים נוספים' למטה — שם הוראות חיבור מלאות שלב-אחר-שלב.")
-            dlg.setDetailedText(
-                "איך לחבר נכון במצב Preloader/BROM:\n"
-                "1. כבה את המכשיר לגמרי (או הוצא סוללה אם אפשר).\n"
-                "2. חבר כבל USB למחשב — בלי המכשיר בצד השני.\n"
-                "3. לחץ והחזק את הכפתורים (Volume Down / Volume Up — אחד מהם, "
-                "או שניהם יחד, לפי דגם המכשיר).\n"
-                "4. תוך כדי ההחזקה חבר את קצה ה-USB למכשיר, והמשך להחזיק עוד 3–5 שניות.\n"
-                "5. ברגע החיבור המכשיר מופיע בפורט לשניות בודדות — זה תקין; "
-                "הפעולה תופסת אותו אוטומטית.\n\n"
-                "אם זה לא עוזר: החלף כבל/פורט USB, וודא שהדרייברים מותקנים "
-                "(לשונית mtkclient ← דרייברים — כולל דרייבר VCOM/Preloader של MediaTek).")
-            retry = dlg.addButton("נסה שוב", QMessageBox.ButtonRole.AcceptRole)
-            dlg.addButton("סגור", QMessageBox.ButtonRole.RejectRole)
-            dlg.setDefaultButton(retry)
+            dlg = ui_kit.Modal(self, "המכשיר לא זוהה",
+                               "לא התקבל חיבור מהמכשיר במשך דקה ורבע.", icon="alert", wide=True)
+            dlg.add_text("הניסיון לקרוא את טבלת המחיצות (GPT) דרך "
+                         f"{ui_kit.ltr('mtkclient')} לא הצליח. "
+                         "הכי נפוץ: המכשיר לא הוכנס נכון למצב BROM/Preloader.", "reason")
+            dlg.add_text("איך לחבר נכון במצב Preloader/BROM", "secTitle")
+            dlg.add(ui_kit.steps_list([
+                "כבה את המכשיר לגמרי (או הוצא סוללה אם אפשר).",
+                "חבר כבל USB למחשב — בלי המכשיר בצד השני.",
+                "לחץ והחזק את הכפתורים (Volume Down / Volume Up — אחד מהם, "
+                "או שניהם יחד, לפי דגם המכשיר).",
+                "תוך כדי ההחזקה חבר את קצה ה-USB למכשיר, והמשך להחזיק עוד 3–5 שניות.",
+                "ברגע החיבור המכשיר מופיע בפורט לשניות בודדות — זה תקין; "
+                "הפעולה תופסת אותו אוטומטית.",
+            ]))
+            dlg.add_text("אם זה לא עוזר: החלף כבל/פורט USB, וודא שהדרייברים מותקנים "
+                         f"(לשונית {ui_kit.ltr('mtkclient')} ← דרייברים — כולל דרייבר "
+                         f"{ui_kit.ltr('VCOM/Preloader')} של MediaTek).", "hint")
+            dlg.add_button("נסה שוב", "retry", "btnPrimary", default=True)
+            dlg.add_button("סגור", "")
             self._gpt_timeout_dialog = dlg
-            dlg.show()
-            # הכפתור של Qt להרחבת הפרטים — נחליף את נוסח האנגלית שלו לעברית ברורה
-            # (ל-Qt אין שם קבוע לכפתור — הוא הכפתור היחיד שלא נוסף על ידינו)
-            from PySide6.QtWidgets import QPushButton as _QBtn
-            ours = set(dlg.buttons())
-            for details_btn in dlg.findChildren(_QBtn):
-                if details_btn not in ours:
-                    details_btn.setText("הצג פרטים נוספים")
-                    break
-            dlg.exec()
+            key = dlg.run()
             self._gpt_timeout_dialog = None
-            if dlg.clickedButton() is retry:
+            if key == "retry":
                 if job_manager.busy:
                     job_manager.cancel_current()   # מוודאים שהניסיון התקוע משוחרר
                 QTimer.singleShot(400, self._read_gpt)
@@ -5066,7 +5116,7 @@ class MainWindow(QMainWindow):
         try:
             if job_manager.busy or self.gpt is None:
                 return
-            if QMessageBox.question(
+            if ui_kit.MessageBox.question(
                     self, "בדיקת בוטלאודר",
                     "ה-GPT נקרא בהצלחה.\nלבדוק עכשיו גם את מצב האבטחה / הבוטלאודר של המכשיר?\n"
                     "(קריאה בלבד — לא משנה כלום)", _YES | _NO, _YES) == _YES:
@@ -5135,10 +5185,10 @@ class MainWindow(QMainWindow):
         if not msi.is_file():
             msi = config.PORTABLE_ROOT / "usbdk.msi"
         if not msi.is_file():
-            QMessageBox.warning(self, "חסר",
+            ui_kit.MessageBox.warning(self, "חסר",
                                 f"לא נמצא usbdk.msi בתיקיית tools של התוכנה:\n{config.PROJECT_ROOT / 'tools'}")
             return
-        if QMessageBox.question(self, "התקנת דרייברים",
+        if ui_kit.MessageBox.question(self, "התקנת דרייברים",
                                 "יופעל מתקין Windows\u200f (msiexec)\u200f עבור UsbDk.\n"
                                 "ייתכן שתידרש הרשאת מנהל (UAC).\nלהמשיך?",
                                 _YES | _NO) != _YES:
@@ -5166,30 +5216,27 @@ class MainWindow(QMainWindow):
         tools = config.PROJECT_ROOT / "tools"
         ps1 = tools / "fix_driver.ps1"
         if not ps1.is_file():
-            QMessageBox.warning(self, "חסר", f"לא נמצא הקובץ:\n{ps1}")
+            ui_kit.MessageBox.warning(self, "חסר", f"לא נמצא הקובץ:\n{ps1}")
             return
         wait_s = 60   # כמה זמן לחכות לחיבור במצב BROM
-        q = QMessageBox(self)
-        q.setIcon(QMessageBox.Icon.Question)
-        q.setWindowTitle("תקן דרייבר למכשיר המחובר")
-        q.setText("התוכנה תחפש מכשיר Android/MediaTek שמחובר בלי דרייבר, "
-                  "ותצמיד לו את הדרייבר המתאים (ADB / Fastboot / BROM).")
-        q.setInformativeText(
-            "• 'תקן עכשיו' — למכשיר שכבר מחובר (ADB / Fastboot).\n"
-            f"• 'חכה לחיבור BROM' — במצב BROM המכשיר מופיע רק לשניות ספורות: "
-            f"לחץ, אשר את חלון ההרשאה, ואז חבר את המכשיר במצב BROM — התוכנה "
-            f"מחכה לו עד {wait_s} שניות ומתקנת ברגע שהוא מופיע.\n\n"
-            "תידרש הרשאת מנהל (UAC).")
-        b_now = q.addButton("תקן עכשיו", QMessageBox.ButtonRole.AcceptRole)
-        b_brom = q.addButton(f"חכה לחיבור BROM ({wait_s} שניות)",
-                             QMessageBox.ButtonRole.ActionRole)
-        q.addButton("ביטול", QMessageBox.ButtonRole.RejectRole)
-        q.setDefaultButton(b_now)
-        q.exec()
-        clicked = q.clickedButton()
-        if clicked is not b_now and clicked is not b_brom:
+        q = ui_kit.Modal(self, "תקן דרייבר למכשיר המחובר", icon="info", wide=True)
+        q.add_text("התוכנה תחפש מכשיר Android/MediaTek שמחובר בלי דרייבר, "
+                   "ותצמיד לו את הדרייבר המתאים "
+                   f"({ui_kit.ltr('ADB')} / {ui_kit.ltr('Fastboot')} / {ui_kit.ltr('BROM')}).")
+        q.add(ui_kit.steps_list([
+            "<b>תקן עכשיו</b> — למכשיר שכבר מחובר (ADB / Fastboot).",
+            "<b>חכה לחיבור BROM</b> — במצב BROM המכשיר מופיע רק לשניות ספורות: "
+            "לחץ, אשר את חלון ההרשאה, ואז חבר את המכשיר במצב BROM — התוכנה "
+            f"מחכה לו עד {wait_s} שניות ומתקנת ברגע שהוא מופיע.",
+        ]))
+        q.add_text("תידרש הרשאת מנהל (UAC).", "hint")
+        q.add_button("תקן עכשיו", "now", "btnPrimary", default=True)
+        q.add_button(f"חכה לחיבור BROM ({wait_s} שניות)", "brom", "btnSoft")
+        q.add_button("ביטול", "")
+        clicked = q.run()
+        if clicked not in ("now", "brom"):
             return
-        wait = wait_s if clicked is b_brom else 0
+        wait = wait_s if clicked == "brom" else 0
         import tempfile
         report = Path(tempfile.gettempdir()) / "askateroov_fix_driver.txt"
         try:
@@ -5268,7 +5315,7 @@ class MainWindow(QMainWindow):
         setups = [] if infs else sorted(
             [p for p in (d.rglob("*") if d.is_dir() else []) if p.suffix.lower() in (".exe", ".msi")])
         if not infs and not setups:
-            QMessageBox.warning(
+            ui_kit.MessageBox.warning(
                 self, "חסר",
                 f"לא נמצאו קובצי {title} בתיקייה:\n"
                 f"{d}\n\n"
@@ -5276,7 +5323,7 @@ class MainWindow(QMainWindow):
             return
         what = (f"יותקנו {len(infs)} קובצי INF דרך pnputil" if infs
                 else f"יופעל קובץ ההתקנה {setups[0].name}")
-        if QMessageBox.question(self, f"התקנת {title}",
+        if ui_kit.MessageBox.question(self, f"התקנת {title}",
                                 f"{what}.\nתידרש הרשאת מנהל (UAC).\nלהמשיך?",
                                 _YES | _NO) != _YES:
             return
@@ -5302,19 +5349,19 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------ Scatter
     def _gen_scatter_full(self):
         if not self.gpt:
-            QMessageBox.warning(self, "אין GPT", "קודם טען GPT בלשונית mtkclient")
+            ui_kit.MessageBox.warning(self, "אין GPT", "קודם טען GPT בלשונית mtkclient")
             return
         chip = self.chip_edit.text().strip()
         if is_placeholder_chip(chip):
             self._say("error", "אין שם מעבד — Scatter לא נוצר")
-            QMessageBox.warning(self, "חסר שם מעבד",
+            ui_kit.MessageBox.warning(self, "חסר שם מעבד",
                                 "שם המעבד (platform) ריק או אינו אמיתי.\n\n"
                                 "קרא GPT מהמכשיר (המעבד יזוהה אוטומטית), או הזן דגם ידנית "
                                 "למשל MT6580.")
             return
         out = config.SCATTER_DIR / scatter_filename(chip)
         if self.gpt.cpu and self.gpt.cpu.upper() != chip.upper():
-            if QMessageBox.question(
+            if ui_kit.MessageBox.question(
                     self, "אי-התאמה במעבד",
                     f"המכשיר דיווח על {self.gpt.cpu}, אבל בשדה כתוב {chip}.\n"
                     "ליצור בכל זאת עם השם שבשדה?", _YES | _NO, _NO) != _YES:
@@ -5322,7 +5369,7 @@ class MainWindow(QMainWindow):
         # שם מכשיר (אופציונלי): אם ימולא — הסקטאר יישמר בבנק בתיקייה נפרדת לפי המכשיר,
         # כך שסקטארים מאותו מעבד למכשירים שונים לא יתנגשו (בלי מספור אוטומטי).
         device = ""
-        dev, ok = QInputDialog.getText(
+        dev, ok = ui_kit.MessageBox.get_text(
             self, "שם המכשיר (אופציונלי)",
             "הזן שם מכשיר להפקת הסקטאר (למשל Redmi_9A):\n"
             "הסקטאר יישמר בבנק בתיקייה נפרדת לפי שם זה.\n\n"
@@ -5332,7 +5379,7 @@ class MainWindow(QMainWindow):
         try:
             generate_scatter(self.gpt, out, chip_name=chip, block_size=self._block_size())
         except ValueError as e:
-            QMessageBox.warning(self, "חסר שם מעבד", str(e))
+            ui_kit.MessageBox.warning(self, "חסר שם מעבד", str(e))
             return
         self._scatter_done(out, chip, device)
 
@@ -5379,14 +5426,14 @@ class MainWindow(QMainWindow):
             return
         if not self.gpt:
             # אין GPT — שאיבה לפי שם מחיצה ידני (קריאה בטוחה, בלי סיכון למכשיר)
-            if QMessageBox.question(
+            if ui_kit.MessageBox.question(
                     self, "שאיבה ללא GPT",
                     "לא נטען GPT.\n\nאפשר לשאוב מחיצה גם בלי GPT — רק צריך להקליד "
                     "את שם המחיצה במדויק (למשל boot).\n(קריאה בלבד — לא מסכנת את המכשיר.)\n\n"
                     "מומלץ לטעון GPT קודם כדי לבחור מרשימה. להמשיך בכל זאת?",
                     _YES | _NO, _NO) != _YES:
                 return
-            name, ok = QInputDialog.getText(
+            name, ok = ui_kit.MessageBox.get_text(
                 self, "שם מחיצה לשאיבה",
                 "הזן את שם המחיצה לשאיבה (בדיוק כפי שהיא במכשיר, למשל boot):")
             if not ok or not name.strip():
@@ -5400,7 +5447,7 @@ class MainWindow(QMainWindow):
             if row >= 0:
                 names = [self.part_list.item(row, 1).text()]
         if not names:
-            QMessageBox.warning(self, "לא סומנו מחיצות", "סמן מחיצה אחת או יותר בעמודת ✔")
+            ui_kit.MessageBox.warning(self, "לא סומנו מחיצות", "סמן מחיצה אחת או יותר בעמודת ✔")
             return
         self._request(self._plan(plan_read_partitions, names, config.DUMPS_DIR))
 
@@ -5427,7 +5474,7 @@ class MainWindow(QMainWindow):
             return
         image = Path(self.image_edit.text().strip())
         if not image.is_file():
-            QMessageBox.warning(self, "קובץ חסר", "בחר קובץ Image תקין")
+            ui_kit.MessageBox.warning(self, "קובץ חסר", "בחר קובץ Image תקין")
             return
         if self.gpt:
             # מסלול רגיל ובטוח: מחיצה מה-GPT + אימות גודל + גיבוי אוטומטי
@@ -5438,14 +5485,14 @@ class MainWindow(QMainWindow):
                                      backup_first=self.backup_check.isChecked()))
             return
         # אין GPT — ברירת המחדל היא לטעון GPT, אבל המשתמש יכול להמשיך בלי, עם אזהרה
-        if QMessageBox.warning(
+        if ui_kit.MessageBox.warning(
                 self, "צריבה ללא GPT",
                 "לא נטען GPT.\n\n⚠️ בלי GPT אין אימות גודל ואין גיבוי אוטומטי — "
                 "צריבת קובץ לא מתאים עלולה לפגוע במכשיר.\n\n"
                 "מומלץ לטעון GPT קודם (לשונית mtkclient). להמשיך בכל זאת?",
                 _YES | _NO, _NO) != _YES:
             return
-        part_name, ok = QInputDialog.getText(
+        part_name, ok = ui_kit.MessageBox.get_text(
             self, "שם מחיצה לצריבה",
             "הזן את שם המחיצה לצריבה (בדיוק כפי שהיא במכשיר, למשל boot):")
         if not ok or not part_name.strip():
@@ -5563,7 +5610,7 @@ class MainWindow(QMainWindow):
         elif ch == "brom":
             self._check_bootloader()
         else:
-            QMessageBox.information(
+            ui_kit.MessageBox.information(
                 self, "אין ערוץ תקשורת פעיל",
                 "לא זוהה מכשיר בערוץ פעיל.\n"
                 "חבר מכשיר, או בחר ערוץ למעלה בשדה 'ערוץ תקשורת'.")
@@ -5578,7 +5625,7 @@ class MainWindow(QMainWindow):
         elif ch == "fastboot":
             self._fastboot_lock_change(unlock)
         elif ch == "adb":
-            if QMessageBox.question(
+            if ui_kit.MessageBox.question(
                     self, f"{verb} בוטלאודר",
                     f"אתה במצב ADB, שאינו מאפשר {act} של הבוטלאודר.\n\n"
                     "להעביר את המכשיר למצב Fastboot ולהמשיך?\n"
@@ -5587,7 +5634,7 @@ class MainWindow(QMainWindow):
                     _YES | _NO, _NO) == _YES:
                 self._adb_boot_change(unlock)   # מאתחל ל-Fastboot, מבצע, ומעביר ערוץ ל-Fastboot
         else:
-            QMessageBox.information(
+            ui_kit.MessageBox.information(
                 self, "אין ערוץ תקשורת פעיל",
                 "לא זוהה מכשיר. חבר מכשיר ובחר ערוץ תקשורת.")
 
@@ -5596,7 +5643,7 @@ class MainWindow(QMainWindow):
         from ..core import adb_boot
         from ..core.jobs import Job, Step
         if not config.find_fastboot_exe():
-            QMessageBox.warning(self, "חסר כלי", "fastboot.exe לא נמצא בתיקיית tools.")
+            ui_kit.MessageBox.warning(self, "חסר כלי", "fastboot.exe לא נמצא בתיקיית tools.")
             return
         verb = "פתיחת" if unlock else "נעילת"
         if unlock:
@@ -5605,7 +5652,7 @@ class MainWindow(QMainWindow):
         else:
             warn = ("⚠️ נעילת הבוטלאודר מוחקת גם היא את הנתונים ברוב המכשירים.\n"
                     "אם מותקנת מערכת לא מקורית — נעילה עלולה למנוע מהמכשיר לעלות!\n\nלהמשיך?")
-        if QMessageBox.warning(self, f"{verb} בוטלאודר", warn, _YES | _NO, _NO) != _YES:
+        if ui_kit.MessageBox.warning(self, f"{verb} בוטלאודר", warn, _YES | _NO, _NO) != _YES:
             return
 
         def build():
@@ -5630,7 +5677,7 @@ class MainWindow(QMainWindow):
         label = self._channel_label(ch)
         extra = ("\n(לצריבה במצב Fastboot השתמש בלשונית Fastboot.)"
                  if ch == "fastboot" and op == "צריבה" else "")
-        if QMessageBox.question(
+        if ui_kit.MessageBox.question(
                 self, f"{op} במצב {label}",
                 f"אתה במצב תקשורת {label}, שבו לא ניתן לבצע {op} דרך mtkclient.\n\n"
                 f"{op} מתבצעת במצב mtkclient\u200f (BROM/Preloader)\u200f.{extra}\n\n"
@@ -5672,7 +5719,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if job_manager.busy:
-            if QMessageBox.question(self, "פעולה פעילה",
+            if ui_kit.MessageBox.question(self, "פעולה פעילה",
                                     "יש פעולה פעילה מול המכשיר. לסגור בכל זאת?\n"
                                     "(הפעולה תבוטל)", _YES | _NO, _NO) != _YES:
                 event.ignore()

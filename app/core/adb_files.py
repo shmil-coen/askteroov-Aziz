@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from .logs import log
+
 _FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
 
 # סוגי קבצים שנחשבים "טקסט לעריכה"
@@ -47,6 +49,47 @@ class FileEntry:
                 return f"{int(n)} {unit}" if unit == "B" else f"{n:.1f} {unit}"
             n /= 1024
         return f"{self.size} B"
+
+
+# שגיאות adb נפוצות (באנגלית) -> הסבר בעברית. הסדר חשוב: הראשון שמתאים מנצח.
+_ADB_ERRORS = (
+    (("no devices/emulators found", "device not found", "no devices found"),
+     "לא נמצא מכשיר מחובר. חבר את המכשיר בכבל USB, ודא שניפוי באגים USB פועל ונסה שוב."),
+    (("unauthorized",),
+     "המכשיר לא אישר את המחשב. אשר במסך המכשיר את הבקשה 'לאפשר ניפוי באגים USB?' ונסה שוב."),
+    (("device offline", "is offline"),
+     "המכשיר מחובר אבל לא מגיב (offline). נתק וחבר את הכבל ונסה שוב."),
+    (("more than one device",),
+     "מחוברים כמה מכשירים בבת אחת. נתק את המיותרים ונסה שוב."),
+    (("cannot connect to daemon", "daemon not running", "failed to start daemon"),
+     "שרת ה-ADB לא עלה. סגור תוכנות אחרות שמשתמשות ב-ADB (כמו Android Studio) ונסה שוב."),
+    (("no such file or directory", "does not exist", "failed to stat remote object"),
+     "הקובץ או התיקייה לא נמצאו במכשיר."),
+    (("permission denied", "operation not permitted"),
+     "אין הרשאת גישה (ייתכן שנדרש root)."),
+    (("read-only file system", "read-only"),
+     "מערכת הקבצים במצב קריאה בלבד — נסה תיקייה תחת /sdcard."),
+    (("no space left", "not enough space"),
+     "אין מספיק מקום פנוי במכשיר או במחשב."),
+    (("protocol fault", "connection reset", "broken pipe", "error: closed"),
+     "החיבור למכשיר נותק באמצע הפעולה. בדוק את הכבל ונסה שוב."),
+)
+
+
+def friendly_error(out: str, default: str) -> str:
+    """הודעת שגיאה של adb (באנגלית) -> הסבר בעברית. אם הטקסט כבר בעברית — כמו שהוא;
+    שגיאה לא מוכרת -> default, והמקור נכתב ללוג (כדי שאפשר יהיה לבדוק)."""
+    text = (out or "").strip()
+    if not text:
+        return default
+    if any("֐" <= ch <= "׿" for ch in text):
+        return text
+    low = text.lower()
+    for keys, msg in _ADB_ERRORS:
+        if any(k in low for k in keys):
+            return msg
+    log.warn(f"שגיאת adb לא מוכרת: {text}")
+    return default
 
 
 def _run(cmd: list[str], timeout: float = 30) -> tuple[int, str]:
@@ -95,6 +138,11 @@ def list_dir(adb: str, path: str) -> tuple[list[FileEntry], str]:
         return [], "אין הרשאת גישה לתיקייה זו (ייתכן שנדרש root)"
     if "not a directory" in low:
         return [], "זו אינה תיקייה"
+    # שגיאה של adb עצמו (אין מכשיר / לא מאושר / offline) — בעברית, ולא כשורות ברשימה
+    if rc != 0 and any(k in low for k in (
+            "no devices/emulators", "device not found", "unauthorized", "offline",
+            "more than one device", "cannot connect to daemon", "error: closed")):
+        return [], friendly_error(out, "אין תשובה מהמכשיר — בדוק חיבור ADB")
     if rc != 0 and not out.strip():
         return [], "אין תשובה מהמכשיר — בדוק חיבור ADB"
 
@@ -149,7 +197,7 @@ def pull(adb: str, remote: str, local: Path) -> tuple[bool, str]:
     low = out.lower()
     if rc == 0 and ("pulled" in low or local.exists()):
         return True, f"הורד אל: {local}"
-    return False, out.strip() or "ההורדה נכשלה"
+    return False, friendly_error(out, "ההורדה נכשלה")
 
 
 def push(adb: str, local: Path, remote_dir: str) -> tuple[bool, str]:
@@ -163,7 +211,7 @@ def push(adb: str, local: Path, remote_dir: str) -> tuple[bool, str]:
         return True, f"הועלה אל: {remote}"
     if "read-only" in low:
         return False, "התיקייה לכתיבה בלבד למערכת (read-only) — נסה תיקייה תחת /sdcard"
-    return False, out.strip() or "ההעלאה נכשלה"
+    return False, friendly_error(out, "ההעלאה נכשלה")
 
 
 def delete(adb: str, remote: str, is_dir: bool) -> tuple[bool, str]:
@@ -174,7 +222,7 @@ def delete(adb: str, remote: str, is_dir: bool) -> tuple[bool, str]:
         return False, "אין הרשאה למחוק (ייתכן שנדרש root)"
     if rc == 0 and not out.strip():
         return True, "נמחק"
-    return (rc == 0), (out.strip() or "נמחק")
+    return (rc == 0), (friendly_error(out, "נמחק" if rc == 0 else "המחיקה נכשלה"))
 
 
 def rename(adb: str, remote: str, new_name: str) -> tuple[bool, str]:
@@ -187,7 +235,7 @@ def rename(adb: str, remote: str, new_name: str) -> tuple[bool, str]:
         return False, "אין הרשאה (ייתכן שנדרש root)"
     if rc == 0 and not out.strip():
         return True, f"השם שונה ל-{new_name}"
-    return (rc == 0), (out.strip() or "בוצע")
+    return (rc == 0), (friendly_error(out, "בוצע" if rc == 0 else "שינוי השם נכשל"))
 
 
 def mkdir(adb: str, parent: str, name: str) -> tuple[bool, str]:
@@ -202,4 +250,4 @@ def mkdir(adb: str, parent: str, name: str) -> tuple[bool, str]:
         return False, "אין הרשאה ליצור כאן תיקייה (ייתכן שנדרש root)"
     if rc == 0 and not out.strip():
         return True, f"נוצרה תיקייה: {name}"
-    return (rc == 0), (out.strip() or "בוצע")
+    return (rc == 0), (friendly_error(out, "בוצע" if rc == 0 else "יצירת התיקייה נכשלה"))

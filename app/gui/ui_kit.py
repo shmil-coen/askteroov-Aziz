@@ -28,7 +28,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QDialog,
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QMenu,
@@ -556,11 +555,8 @@ class Toast(QFrame):
             x.setCursor(Qt.CursorShape.PointingHandCursor)
             x.clicked.connect(self.dismiss)
             lay.addWidget(x, 0, Qt.AlignmentFlag.AlignVCenter)
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(28)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 110))
-        self.setGraphicsEffect(shadow)
+        # בלי צל (QGraphicsEffect) — הוא מצייר את ההודעה מחדש בלי ClearType והטקסט פחות חד;
+        # המסגרת מ-theme.py מספיקה
         self._remaining = duration
         self._clock = QElapsedTimer()
         self._timer = QTimer(self)
@@ -714,11 +710,7 @@ class Modal(QDialog):
         self.actions.setSpacing(10)
         self.actions.addStretch(1)
         v.addLayout(self.actions)
-        shadow = QGraphicsDropShadowEffect(self.card)
-        shadow.setBlurRadius(40)
-        shadow.setOffset(0, 12)
-        shadow.setColor(QColor(0, 0, 0, 150))
-        self.card.setGraphicsEffect(shadow)
+        # בלי צל — כדי שהטקסט בכרטיס יהיה חד כמו בשאר התוכנה (הרקע המוחשך מבליט אותו ממילא)
 
     def add(self, widget: QWidget, stretch: int = 0):
         self.body.addWidget(widget, stretch)

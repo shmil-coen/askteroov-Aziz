@@ -24,7 +24,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFrame,
-    QGraphicsDropShadowEffect,
     QGridLayout,
     QSizePolicy,
     QStackedWidget,
@@ -316,10 +315,15 @@ class _MainTabBar(QTabBar):
             # נקודת ההתחלה מחושבת עכשיו, מהלשונית הקודמת (לא ממיקום שמור ישן —
             # הוא עלול להיות מלפני שהחלון קיבל את גודלו הסופי)
             prev = self._prev_index
-            start = self._pill_rect(prev) if 0 <= prev < self.count() and prev != i else end
+            start = self._pill_rect(prev) if 0 <= prev < self.count() and prev != i else QRectF()
         self._prev_index = i
-        if start.isNull():
-            start = end
+        if start.isNull() or start == end or not self.isVisible():
+            # בלי תנועה — לפני שהחלון מוצג (בזמן הבנייה המיקומים עוד לא סופיים), או כשאין
+            # ממה לזוז; paintEvent מחשב את המקום העדכני בעצמו
+            self._anim.stop()
+            self._pill = QRectF()
+            self.update()
+            return
         self._anim.stop()
         self._anim.setStartValue(start)
         self._anim.setEndValue(end)
@@ -548,16 +552,12 @@ class _SettingsPopup(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self._win = win
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 10, 12, 18)   # מקום לצל
+        outer.setContentsMargins(0, 0, 0, 0)
         panel = QFrame()
         panel.setObjectName("settingsPanel")
         panel.setFixedWidth(380)
         outer.addWidget(panel)
-        shadow = QGraphicsDropShadowEffect(panel)
-        shadow.setBlurRadius(30)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 140))
-        panel.setGraphicsEffect(shadow)
+        # בלי צל — כדי שהטקסט יהיה חד כמו בשאר התוכנה; המסגרת מ-theme.py מספיקה
         v = QVBoxLayout(panel)
         v.setContentsMargins(8, 8, 8, 8)
         v.setSpacing(0)
@@ -638,7 +638,7 @@ class _SettingsPopup(QWidget):
         """פותח מתחת לגלגל השיניים (בקצה השמאלי של הפס העליון, כמו בדמו), בתוך המסך."""
         self.adjustSize()
         pos = anchor.mapToGlobal(QPoint(0, anchor.height()))
-        x, y = pos.x() - 12, pos.y() - 2
+        x, y = pos.x(), pos.y() + 6
         screen = anchor.screen().availableGeometry() if anchor.screen() else None
         if screen is not None:
             x = max(screen.left(), min(x, screen.right() - self.width()))
